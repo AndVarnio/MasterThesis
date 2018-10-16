@@ -22,7 +22,7 @@ class HSICamera
       int bitDepth;
       int cubeColumns;
       int cubeRows = 25; //1735;
-      int nSingleFrames = 100;
+      int nSingleFrames = 480;
       double frameRate = 32.0;
       int bands;
       // static const int cubeRows = 10;
@@ -186,7 +186,12 @@ void HSICamera::writeBandsToSeparateFiles(){
   std::string newDirectory = "mkdir -p ./capture/"+timeString;
   system(newDirectory.c_str());
 
+  std::vector<cv::Mat> rgbChannels;
+
+
   char grayScaleImage[nSingleFrames*sensorRows];
+  char rgbImage[3][nSingleFrames*sensorRows];
+  int bandIterator = 0;
   if(1){ //This is bsq
     for(int band=0; band<bands; band++){
       for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
@@ -197,6 +202,25 @@ void HSICamera::writeBandsToSeparateFiles(){
       std::string filename = "./capture/" + timeString + "/" + std::to_string(band) + ".png";
       cv::Mat grayScaleMat = cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &grayScaleImage);
       imwrite(filename,grayScaleMat);
+      //Make RGB image
+      if(band==292||band==734||band==1147){
+        for(int i=0; i<nSingleFrames*sensorRows; i++){
+          rgbImage[bandIterator][i] = grayScaleImage[i];
+        }
+
+        bandIterator++;
+
+        if(band==1147){
+          rgbChannels.push_back(cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &rgbImage[0]));
+          rgbChannels.push_back(cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &rgbImage[1]));
+          rgbChannels.push_back(cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &rgbImage[2]));
+
+          cv::Mat rgbImage;
+          cv::merge(rgbChannels, rgbImage);
+          filename = "./capture/" + timeString + "/RedGreenBlue" + ".png";
+          imwrite(filename,rgbImage);
+        }
+      }
     }
   }
 }

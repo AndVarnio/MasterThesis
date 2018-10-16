@@ -1,11 +1,12 @@
 #include <opencv2/highgui.hpp>
 #include <iostream>
+#include <vector>
 //g++ opencvImages.cpp -o output `pkg-config --cflags --libs opencv`
 const int SIZE = 9980928;
 static unsigned char arrayOfPixels[SIZE];
 
 int main( int argc, char** argv ) {
-
+/*
   cv::Mat image;
   image = cv::imread("testColorImage.jpg" , CV_LOAD_IMAGE_COLOR);
 
@@ -48,5 +49,20 @@ imwrite("red.png",bgr[2]); //red channel
  // cv::imshow( "Display window", image );
 
   cv::waitKey(0);
+  */
+
+  cv::Mat bgr[3];
+  bgr[0] = cv::imread("292.png" , CV_LOAD_IMAGE_GRAYSCALE);
+  bgr[1] = cv::imread("734.png" , CV_LOAD_IMAGE_GRAYSCALE);
+  bgr[2] = cv::imread("1147.png" , CV_LOAD_IMAGE_GRAYSCALE);
+
+  std::vector<cv::Mat> channels;
+  channels.push_back(bgr[1]);
+  channels.push_back(bgr[0]);
+  channels.push_back(bgr[2]);
+  cv::Mat rgbImage;
+  cv::merge(channels, rgbImage);
+
+  imwrite("RedGreenBlue.png",rgbImage);
   return 0;
 }
