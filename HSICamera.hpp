@@ -16,18 +16,21 @@ class HSICamera
     private:
       HIDS hCam = 1;
       char* memSingleImage = NULL;
+
       int memIDSingle = 0;
       int sensorRows;
       int sensorColumns;
       int bitDepth;
       int cubeColumns;
       int cubeRows = 25; //1735;
-      int nSingleFrames = 480;
+      const int nSingleFrames = 320;
       double frameRate = 32.0;
       int bands;
+      char** memSingleImageSequence = new char*[nSingleFrames];
       // static const int cubeRows = 10;
       char **hsiCube;
       int captureInterval = 1000*10;
+      int singleImageMemSize;
       void writeCubeToFile();
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
@@ -50,6 +53,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   UINT nPixelClock = pixelClockMHz;
 
   if(1){//TODO cubeformat enum, now bil
+    singleImageMemSize = sensorRows*sensorColumns;
     cubeColumns = sensorRows*bands;
     cubeRows = nSingleFrames;
     hsiCube = new char*[cubeRows];
@@ -93,25 +97,83 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
   };
 
+  /////////////Set imagememory for triggermode//////////////////////
+  /*
   is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
   is_SetImageMem(hCam, memSingleImage, memIDSingle);
 
   is_SetExternalTrigger(hCam, IS_SET_TRIGGER_SOFTWARE);
+  */
 
-  // errorCode = is_CaptureVideo (hCam, IS_WAIT);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
-  // };
-  //
-  // double fps = frameRate;
-  // errorCode = is_SetFrameRate(hCam, fps, &fps);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
-  // };
+  for(int imageMemory=1; imageMemory<=nSingleFrames; imageMemory++){
+    printf("Adding imagememory %i\n", imageMemory);
+    is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImageSequence[imageMemory], &imageMemory);
+    is_AddToSequence (hCam, memSingleImageSequence[imageMemory], imageMemory);
+  }
+  is_InitImageQueue (hCam, 0);
+  /*
+  double fTemperature = 0;
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_TEMPERATURE,
+                      (void*)&fTemperature, sizeof(fTemperature));
+  printf("Internal camera temperature: %f", fTemperature);
 
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_SENSOR_TEMPERATURE_NUMERICAL_VALUE,
+                      (void*)&fTemperature, sizeof(fTemperature));
+  printf("Internal temperature: %f", fTemperature);
+
+  INT nTemperatureStatus = 0;
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_TEMPERATURE_STATUS, &nTemperatureStatus, sizeof(nTemperatureStatus));
+  printf("Temperature status: %i", nTemperatureStatus);
+*/
+  // is_DeviceFeature (hCam, IS_DEVICE_FEATURE_CMD_GET_SENSOR_TEMPERATURE_NUMERICAL_VALUE, void* pParam, UINT cbSizeOfParam)
 }
 
 void HSICamera::runCubeCapture(){
+
+  double fps = frameRate;
+  int errorCode;
+  errorCode = is_SetFrameRate(hCam, fps, &fps);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
+  };
+
+
+  errorCode = is_CaptureVideo (hCam, IS_WAIT);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
+  };
+
+  char** ppcMem = new char*[nSingleFrames];
+  ppcMem[0] = NULL;
+  int imageSequenceID = 1; // = new int[nSingleFrames];
+  if(1){//if this is bsq
+    for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
+      is_WaitForNextImage(hCam, 1000, &(ppcMem[imageNumber]), &imageSequenceID);
+      printf("Tick %i\n", imageNumber);
+    }
+    // while(1){
+      for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+        //TODO Binning
+
+        for(int band=0; band<bands; band++){
+          for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+            hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = ppcMem[cubeRow][sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
+          }
+        }
+        // usleep(captureInterval);
+      }
+      printf("Images captured\n");
+      writeCubeToFile();
+      printf("New cube written to file\n");
+      writeBandsToSeparateFiles();
+      printf("Grayscale images written to folder\n");
+    // }
+  }
+
+
+
+  /////////////////////////////////Trigger mode /////////////////////
+  /*
   if(1){//if this is bsq
     // while(1){
       for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
@@ -131,7 +193,7 @@ void HSICamera::runCubeCapture(){
       writeBandsToSeparateFiles();
       printf("Grayscale images written to folder\n");
     // }
-  }
+  }*/
 
 }
 
