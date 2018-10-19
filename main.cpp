@@ -5,8 +5,15 @@ int main(){
   HSICamera camera;
   // camera.initialize(pixelclock, resolution, exposure time, rows, columns, bits);
   // resolution: 13=640x480/6=1920x1080
-  camera.initialize(237, 6, 8, 1080, 1920, 8);
+  // camera.initialize(332, 6, 50, 1080, 1920, 8); //ui336
+  // camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
+  camera.initialize(237, 6, 20, 1080, 1920, 8);
   camera.runCubeCapture();
-  printf("Terminating program\n");
+
+  for(int i=0; i<0; i++){
+    printf("Terminating program\n");
+  }
+
+
   return 0;
 }

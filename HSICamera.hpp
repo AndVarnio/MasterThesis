@@ -23,10 +23,11 @@ class HSICamera
       int bitDepth;
       int cubeColumns;
       int cubeRows = 25; //1735;
-      const int nSingleFrames = 320;
+      const int nSingleFrames = 1024;
       double frameRate = 32.0;
       int bands;
       char** memSingleImageSequence = new char*[nSingleFrames];
+      int binningFactor = 10;
       // static const int cubeRows = 10;
       char **hsiCube;
       int captureInterval = 1000*10;
@@ -106,7 +107,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   */
 
   for(int imageMemory=1; imageMemory<=nSingleFrames; imageMemory++){
-    printf("Adding imagememory %i\n", imageMemory);
+    // printf("Adding imagememory %i\n", imageMemory);
     is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImageSequence[imageMemory], &imageMemory);
     is_AddToSequence (hCam, memSingleImageSequence[imageMemory], imageMemory);
   }
@@ -151,15 +152,56 @@ void HSICamera::runCubeCapture(){
       is_WaitForNextImage(hCam, 1000, &(ppcMem[imageNumber]), &imageSequenceID);
       printf("Tick %i\n", imageNumber);
     }
+    *(unsigned char*)(&ppcMem); //Reinterpret cast
     // while(1){
+    // /////Binning
+    int factorLastBands = bands%binningFactor;
+    int nBinningsPerRow = bands/binningFactor;
+
+    for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
+      for(int row=0; row<sensorRows; row++){
+        for(int binnIterator=0; binnIterator<nBinningsPerRow; binnIterator++){
+          int totPixVal = 0;
+          for(int pixelIterator=0; pixelIterator<binningFactor; pixelIterator++){
+            // TODO Char arithmatic
+            totPixVal += (int)ppcMem[imageNumber][binnIterator*binningFactor+pixelIterator];
+          }
+          ppcMem[imageNumber][binnIterator] = (unsigned char)(totPixVal/binningFactor);
+        }
+        if(factorLastBands>0){
+          int totPixVal = 0;
+          for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
+            // TODO Char arithmatic
+            totPixVal += (int)ppcMem[imageNumber][nBinningsPerRow*binningFactor+pixelIterator];
+          }
+          ppcMem[imageNumber][nBinningsPerRow] = (unsigned char)totPixVal/factorLastBands;
+        }
+      }
+    }
+///Make cube
       for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
         //TODO Binning
+        // Put rows together
+        // store them in new array
+        int nBandsBinned;
+        if(sensorColumns%binningFactor==0){
+          nBandsBinned = sensorColumns/binningFactor;
+        }
+        else{
+          nBandsBinned = sensorColumns/binningFactor + 1;
+        }
 
+        for(int band=0; band<bands; band++){
+          for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+            hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = ppcMem[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
+          }
+        }
+        /*
         for(int band=0; band<bands; band++){
           for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
             hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = ppcMem[cubeRow][sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
           }
-        }
+        }*/
         // usleep(captureInterval);
       }
       printf("Images captured\n");
@@ -265,6 +307,7 @@ void HSICamera::writeBandsToSeparateFiles(){
       cv::Mat grayScaleMat = cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &grayScaleImage);
       imwrite(filename,grayScaleMat);
       //Make RGB image
+/*
       if(band==292||band==734||band==1147){
         for(int i=0; i<nSingleFrames*sensorRows; i++){
           rgbImage[bandIterator][i] = grayScaleImage[i];
@@ -283,6 +326,7 @@ void HSICamera::writeBandsToSeparateFiles(){
           imwrite(filename,rgbImage);
         }
       }
+*/
     }
   }
 }
