@@ -1,0 +1,173 @@
+#!/bin/sh
+
+generate_usb=0
+generate_eth=0
+generate_api=0
+
+namespace=""
+outfile=""
+variant=""
+ueyedir=""
+
+
+
+usage()
+{
+    echo "Usage: $0 -n NAMESPACE -V VARIANT [-o OUTFILE] [-u UEYEDIR]"
+    echo
+    echo "  VARIANT: usb|eth|api"
+    echo "  OUTFILE: /usr/local/share/ueye/ueyed.conf"
+    echo "  UEYEDIR: /usr/local/share/ueye"
+    echo
+}
+
+
+
+while getopts "hn:o:V:u:" opt; do
+    case $opt in
+    h)
+        usage
+        exit 0
+        ;;
+    o)
+        outfile="${OPTARG}"
+        ;;
+    n)
+        namespace="${OPTARG}"
+        ;;
+    V)
+        variant="${OPTARG}"
+        ;;
+    u)
+        ueyedir="${OPTARG}"
+        ;;
+    \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 2
+        ;;
+    :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 3
+        ;;
+    *)
+        usage
+        exit 4
+    esac
+done
+
+
+
+# only run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root." 1>&2
+    exit 1
+fi
+
+
+
+case $variant in
+    usb)
+        generate_usb=1
+        ;;
+    eth)
+        generate_eth=1
+        ;;
+    api)
+        generate_api=1
+        ;;
+    *)
+        usage
+        exit 5
+        ;;
+esac
+
+
+
+if [ -z "${namespace}" ]; then
+    usage
+    exit 6
+fi
+
+if [ -z "${outfile}" ]; then
+    outfile="/usr/local/share/ueye/ueyed.conf"
+fi
+
+if [ -z "${ueyedir}" ]; then
+    ueyedir="/usr/local/share/ueye"
+fi
+
+
+
+echo "Creating configuration, output file is ${outfile}."
+NSP=`echo "${namespace}/" | sed -e 's/\/*$/\//g'`
+
+
+
+if [ "${generate_usb}" -eq 1 ]; then
+    mkdir -p `dirname "${outfile}"`
+
+    echo "; ueyeusbd configuration file" >> $outfile
+    echo "" >> $outfile
+    echo "[Parameters]" >> $outfile
+    echo "Usb3FirmwarePath = ${ueyedir}/firmware/usb3/" >> $outfile
+    echo "Usb3AddonFirmwarePath = ${ueyedir}/firmware/usb3_addon/" >> $outfile
+    echo "DeviceSequentialArrangement = 300" >> $outfile
+    echo "" >> $outfile
+fi
+
+
+
+if [ "${generate_eth}" -eq 1 ]; then
+    mkdir -p `dirname "${outfile}"`
+
+    all_interfaces=`ls -C /sys/class/net | sort`
+    interfaces=""
+    for INTERFACE in $all_interfaces; do
+        current_interface=$INTERFACE
+
+        # loopback devices
+        current_interface=`echo ${current_interface} | sed 's/^lo$//g'`
+
+        # docker devices
+        current_interface=`echo ${current_interface} | sed 's/^docker[0-9]*//g'`
+
+        # libvirt devices
+        current_interface=`echo ${current_interface} | sed 's/^vir.*//g'`
+
+        # serial line ip (slip)
+        current_interface=`echo ${current_interface} | sed 's/^sl.*//g'`
+
+        # wlan
+        current_interface=`echo ${current_interface} | sed 's/^wl.*//g'`
+
+        # wwan
+        current_interface=`echo ${current_interface} | sed 's/^ww.*//g'`
+
+        interfaces="${interfaces} ${current_interface}"
+    done
+    interfaces="`echo ${interfaces} | sed 's/[[:space:]][[:space:]]*/ /g'`"
+    interfaces="`echo ${interfaces} | sed 's/^[[:space:]]*//g'`"
+    interfaces="`echo ${interfaces} | sed 's/[[:space:]]*$//g'`"
+
+    echo "; ueyeethd configuration file" >> $outfile
+    echo "" >> $outfile
+    echo "[Parameters]" >> $outfile
+    echo "Interfaces = ${interfaces}" >> $outfile
+    echo "" >> $outfile
+fi
+
+
+
+if [ "${generate_api}" -eq 1 ]; then
+    mkdir -p `dirname "${outfile}"`
+
+    content=""
+    content="${content}"$'\n'
+    content="${content}"$'\n'
+    content="${content}"$'\n'
+
+    echo "; libueye_api configuration file" >> $outfile
+    echo "" >> $outfile
+    echo "[Parameters]" >> $outfile
+    echo "" >> $outfile
+fi
