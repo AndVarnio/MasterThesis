@@ -10,11 +10,5 @@ int main(){
   // camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
   camera.initialize(344, 6, 60, 1080, 1920, 8);
   camera.runCubeCapture();
-
-  for(int i=0; i<0; i++){
-    printf("Terminating program\n");
-  }
-
-
   return 0;
 }

@@ -28,7 +28,7 @@ class HSICamera
       int bands;
       int nBandsBinned;
       char** memSingleImageSequence = new char*[nSingleFrames];
-      int binningFactor = 1;
+      int binningFactor = 10;
       // static const int cubeRows = 10;
       char **hsiCube;
       int captureInterval = 1000*10;
@@ -36,6 +36,7 @@ class HSICamera
       void writeCubeToFile();
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
+      void writeRawDataToFile(char** rawImages, int nRows, int nColumns);
 };
 
 HSICamera::HSICamera(){
@@ -57,7 +58,6 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   UINT nPixelClock = pixelClockMHz;
 
   ////////////////////Binning////////////////////
-
   if(binningFactor>1){
     if(sensorColumns%binningFactor==0){
       nBandsBinned = sensorColumns/binningFactor;
@@ -176,12 +176,16 @@ void HSICamera::runCubeCapture(){
       is_WaitForNextImage(hCam, 1000, &(ppcMem[imageNumber]), &imageSequenceID);
       // printf("Tick %i\n", imageNumber);
     }
+    printf("Images captured\n");
+    writeRawDataToFile(ppcMem, nSingleFrames, sensorRows*sensorColumns);
+    printf("Raw data written to file\n");
     *(unsigned char*)(&ppcMem); //Reinterpret cast
 
     /////Binning
     if(binningFactor>1){
       int factorLastBands = bands%binningFactor;
       int nBinningsPerRow = bands/binningFactor;
+      int nColumnsBinned = (bands + binningFactor - 1) / binningFactor;
 
       for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
         for(int row=0; row<sensorRows; row++){
@@ -189,9 +193,9 @@ void HSICamera::runCubeCapture(){
             int totPixVal = 0;
             for(int pixelIterator=0; pixelIterator<binningFactor; pixelIterator++){
               // TODO Char arithmatic
-              totPixVal += (int)ppcMem[imageNumber][binnIterator*binningFactor+pixelIterator];
+              totPixVal += (int)ppcMem[imageNumber][row*sensorColumns+binnIterator*binningFactor+pixelIterator];
             }
-            ppcMem[imageNumber][binnIterator] = (unsigned char)(totPixVal/binningFactor);
+            ppcMem[imageNumber][row*nColumnsBinned+binnIterator] = (unsigned char)(totPixVal/binningFactor);
           }
           if(factorLastBands>0){
             int totPixVal = 0;
@@ -199,7 +203,7 @@ void HSICamera::runCubeCapture(){
               // TODO Char arithmatic
               totPixVal += (int)ppcMem[imageNumber][nBinningsPerRow*binningFactor+pixelIterator];
             }
-            ppcMem[imageNumber][nBinningsPerRow] = (unsigned char)totPixVal/factorLastBands;
+            ppcMem[imageNumber][row*nColumnsBinned+nBinningsPerRow] = (unsigned char)totPixVal/factorLastBands;
           }
         }
       }
@@ -219,13 +223,13 @@ void HSICamera::runCubeCapture(){
           }
         }
 
-        /*
+/*
         for(int band=0; band<bands; band++){
           for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
             hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = ppcMem[cubeRow][sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
           }
         }
-        */
+*/
       }
 
 
@@ -252,11 +256,35 @@ void HSICamera::runCubeCapture(){
   }
 */
 
-  printf("Images captured\n");
+
   writeCubeToFile();
   printf("New cube written to file\n");
   writeBandsToSeparateFiles();
   printf("Grayscale images written to folder\n");
+}
+
+void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
+  std::ofstream ofs;
+  auto time_now = std::time(0);
+  std::stringstream ss;
+  ss << time_now;
+  std::string timeString = ss.str();
+  timeString = "./capture/" + timeString + "SensorData.raw";
+  printf("Trying to open: %s\n", timeString.c_str());
+  ofs.open( timeString, std::ofstream::binary|std::ios_base::app );
+  if (!ofs.is_open())
+  {
+    printf("ofs not open\n");
+  }
+  // ofs.write( pMem, sensorColumns*sensorRows );//TODO bitDepth
+  const char linebreak = '\n';
+  for(int i=0; i<nRows; i++){
+    ofs.write( rawImages[i], nColumns );
+    //ofs.write( &linebreak, 1 );
+    // ofs << hsiCube[i];
+    // ofs << "\n";
+  }
+  ofs.close();
 }
 
 void HSICamera::writeCubeToFile(){
