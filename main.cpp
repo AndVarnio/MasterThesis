@@ -7,8 +7,9 @@ int main(){
   // resolution: 13=640x480/6=1920x1080
   // camera.initialize(232, 6, 50, 1080, 1920, 8); //ui336
   // camera.initialize(344, 6, 30, 1080, 1920, 8); //ui336
-  // camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
-  camera.initialize(344, 6, 60, 1080, 1920, 8);
-  camera.runCubeCapture();
+  camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
+  // camera.initialize(344, 6, 60, 1080, 1920, 8);
+  // camera.runCubeCapture();
+  camera.captureSingleImage();
   return 0;
 }

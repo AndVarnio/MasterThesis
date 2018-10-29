@@ -1,9 +1,11 @@
 #include<ueye.h>
 #include<stdio.h>
-#include <fstream>
-#include <sstream>
-#include<iomanip>
-#include <opencv2/highgui.hpp>
+#include<string.h>
+// #include <fstream>
+#include<time.h>
+// #include <sstream>
+// #include<iomanip>
+// #include <opencv2/highgui.hpp>
 
 class HSICamera
 {
@@ -28,7 +30,7 @@ class HSICamera
       int bands;
       int nBandsBinned;
       char** memSingleImageSequence = new char*[nSingleFrames];
-      int binningFactor = 10;
+      int binningFactor = 1;
       // static const int cubeRows = 10;
       char **hsiCube;
       int captureInterval = 1000*10;
@@ -118,13 +120,13 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
   };
   /////////////Set imagememory for triggermode//////////////////////
-/*
+
   is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
   is_SetImageMem(hCam, memSingleImage, memIDSingle);
 
   is_SetExternalTrigger(hCam, IS_SET_TRIGGER_SOFTWARE);
-*/
 
+/*
   /////////////Set imagememory for freerun mode//////////////////////
   for(int imageMemory=1; imageMemory<=nSingleFrames; imageMemory++){
     // printf("Adding imagememory %i\n", imageMemory);
@@ -132,7 +134,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     is_AddToSequence (hCam, memSingleImageSequence[imageMemory], imageMemory);
   }
   is_InitImageQueue (hCam, 0);
-
+*/
   //////////////Temperature/////////////////////
   /*
   double fTemperature = 0;
@@ -264,12 +266,15 @@ void HSICamera::runCubeCapture(){
 }
 
 void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
+  /*
   std::ofstream ofs;
   auto time_now = std::time(0);
   std::stringstream ss;
   ss << time_now;
   std::string timeString = ss.str();
   timeString = "./capture/" + timeString + "SensorData.raw";
+  */
+  /*
   printf("Trying to open: %s\n", timeString.c_str());
   ofs.open( timeString, std::ofstream::binary|std::ios_base::app );
   if (!ofs.is_open())
@@ -285,15 +290,38 @@ void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
     // ofs << "\n";
   }
   ofs.close();
+  */
+
+  struct timespec timeSystem;
+  clock_gettime(CLOCK_REALTIME, &timeSystem);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)timeSystem.tv_nsec);
+  char filePath[64];
+  strcpy(filePath, "/home/andreas/HSIProject/capture/");
+  strcat(filePath, timeSystemString);
+  strcat(filePath, "SensorData.raw");
+
+
+  FILE * fp;
+  fp = fopen (filePath,"wb");
+
+  for(int i=0; i<nRows; i++){
+    fwrite (rawImages[i], sizeof(char), nColumns, fp);//TODO bitDepth
+  }
+  fclose (fp);
+
 }
 
 void HSICamera::writeCubeToFile(){
+  /*
   std::ofstream ofs;
   auto time_now = std::time(0);
   std::stringstream ss;
   ss << std::put_time(std::gmtime(&time_now), "%c %Z");
   std::string timeString = ss.str();
-  timeString = "./capture/" + timeString + ".raw";
+  timeString = "/home/andreas/HSIProject/capture/" + timeString + ".raw";
+*/
+  /*
   printf("Trying to open: %s\n", timeString.c_str());
   ofs.open( timeString, std::ofstream::binary|std::ios_base::app );
   if (!ofs.is_open())
@@ -309,6 +337,24 @@ void HSICamera::writeCubeToFile(){
     // ofs << "\n";
   }
   ofs.close();
+*/
+  struct timespec timeSystem;
+  clock_gettime(CLOCK_REALTIME, &timeSystem);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)timeSystem.tv_nsec);
+  char filePath[64];
+  strcpy(filePath, "/home/andreas/HSIProject/capture/");
+  strcat(filePath, timeSystemString);
+  strcat(filePath, "Cube.raw");
+
+  FILE * fp;
+  fp = fopen (filePath,"wb");
+
+  for(int i=0; i<cubeRows; i++){
+    fwrite (hsiCube[i], sizeof(char), cubeColumns, fp);//TODO bitDepth
+  }
+  fclose (fp);
+
 }
 
 void HSICamera::captureSingleImage(){
@@ -317,20 +363,36 @@ void HSICamera::captureSingleImage(){
 }
 
 void HSICamera::writeSingleToFile(){
-  std::ofstream ofs;
+/*
   auto time_now = std::time(0);
   std::stringstream ss;
-  ss << std::put_time(std::gmtime(&time_now), "%c %Z");
+  ss << time_now;
   std::string timeString = ss.str();
-  timeString = "./capture/" + timeString + ".raw";
-
+  timeString = "/home/andreas/HSIProject/capture/" + timeString + ".raw";
+  */
+  /*
+  std::ofstream ofs;
   ofs.open( timeString, std::ofstream::binary );
   ofs.write( memSingleImage, sensorColumns*sensorRows );//TODO bitDepth
-  ofs.close();
+  ofs.close();*/
+
+  struct timespec timeSystem;
+  clock_gettime(CLOCK_REALTIME, &timeSystem);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)timeSystem.tv_nsec);
+  char filePath[64];
+  strcpy(filePath, "/home/andreas/HSIProject/capture/");
+  strcat(filePath, timeSystemString);
+  strcat(filePath, "Single.raw");
+
+  FILE * fp;
+  fp = fopen (filePath,"wb");
+  fwrite (memSingleImage, sizeof(char), sensorColumns*sensorRows, fp);//TODO bitDepth
+  fclose (fp);
 }
 
 void HSICamera::writeBandsToSeparateFiles(){
-
+/*
   auto time_now = std::time(0);
   std::stringstream ss;
   ss << time_now;
@@ -354,6 +416,7 @@ void HSICamera::writeBandsToSeparateFiles(){
       std::string filename = "./capture/" + timeString + "/" + std::to_string(band) + ".png";
       cv::Mat grayScaleMat = cv::Mat(nSingleFrames, sensorRows, CV_8UC1, &grayScaleImage);
       imwrite(filename,grayScaleMat);
+      */
       //Make RGB image
 /*
       if(band==292||band==734||band==1147){
@@ -375,6 +438,6 @@ void HSICamera::writeBandsToSeparateFiles(){
         }
       }
 */
-    }
-  }
+    // }
+  // }
 }
