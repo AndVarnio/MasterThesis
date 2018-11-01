@@ -3,17 +3,19 @@
 #include <vector>
 #include <opencv2/highgui.hpp>
 #include <omp.h>
-
+// g++ readBIL.cpp `pkg-config --cflags --libs opencv`
 int columns = 1080;
 int bands = 1920;
-int rows = 640;
+int rows = 100;
 
 char* buffer;
 char** waveLengths;
 
 int main()
 {
+    // buffer = malloc(columns*bands*rows);
     buffer = new char[columns*bands*rows];
+    printf("NJINI\n");
     waveLengths = new char*[bands];
     for(int band=0; band<bands; band++){
       waveLengths[band] = new char[rows*columns];
