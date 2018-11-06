@@ -3,10 +3,11 @@
 #include <vector>
 #include <opencv2/highgui.hpp>
 #include <omp.h>
+#include <iostream>
 // g++ readBIL.cpp `pkg-config --cflags --libs opencv`
 int columns = 1080;
-int bands = 1920;
-int rows = 100;
+int bands = 96;
+int rows = 1735;
 
 char* buffer;
 char** waveLengths;
@@ -20,18 +21,24 @@ int main()
     for(int band=0; band<bands; band++){
       waveLengths[band] = new char[rows*columns];
     }
-    std::ifstream input( "toDecode.raw", std::ios::binary );
+    std::ifstream input( "482867426Cube.raw", std::ios::in | std::ios::binary );
+    if (!input)
+   {
+       std::cout << "Failed to open file\n";
+       exit(1);
+   }
 
     input.seekg (0, input.end);
     int lengthFile = input.tellg();
     input.seekg (0, input.beg);
 
-    input.read(buffer, columns*bands*rows);
+    input.read(buffer, columns*rows*bands);
 
     if (input)
       printf("%i Characters read successfully\n", lengthFile);
     else
       printf("Error, read only %i out of %li characters\n", lengthFile, input.gcount());
+
 
     #pragma omp parallel for num_threads(4)
     for(int band=0; band<bands; band++){
@@ -42,7 +49,7 @@ int main()
       }
     }
     printf("Images stored in arrays\n");
-    cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[500]);
+    cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[25]);
     cv::Size s = grayScaleMat.size();
     printf("Height=%i - Width=%i\n",s.height, s.width);
     imwrite("grayImage.png",grayScaleMat);

@@ -2,8 +2,11 @@
 #include<stdio.h>
 #include<string.h>
 #include <stdlib.h>
-#include<time.h>
 
+// #include <fstream>
+#include<time.h>
+// #include <sstream>
+// #include<iomanip>
 // #include <opencv2/highgui.hpp>
 
 class HSICamera
@@ -17,35 +20,30 @@ class HSICamera
     private:
       HIDS hCam = 1;
       char* memSingleImage = NULL;
-      int memIDSingle = 0;
 
+      int memIDSingle = 0;
       int sensorRows;
       int sensorColumns;
       int bitDepth;
-
       int cubeColumns;
-      int cubeRows = 25;
-
+      int cubeRows = 25; //1735;
       const int nSingleFrames = 1735;
       const int nRawImagesInMemory = 100;
       double frameRate = 16.0;
-
       int bands;
       int nBandsBinned;
-      int factorLastBands = 0;
-      int nFullBinnsPerRow = 0;
-      int binningFactor = 20;
-      bool meanBinning = true;
-
       char** memSingleImageSequence = new char*[nRawImagesInMemory];
+      int binningFactor = 20;
+      // static const int cubeRows = 10;
       char **hsiCube;
       unsigned char** binnedImages;
-
+      int captureInterval = 1000*10;
+      int singleImageMemSize;
+      bool meanBinning = false;
       void writeCubeToFile();
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
       void writeRawDataToFile(char** rawImages, int nRows, int nColumns);
-
       int random_partition(unsigned char* arr, int start, int end);
       int random_selection(unsigned char* arr, int start, int end, int k);
       void insertionSort(unsigned char arr[], int n);
@@ -74,16 +72,23 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   UINT nPixelClock = pixelClockMHz;
 
   ////////////////////Binning////////////////////
-  factorLastBands = bands%binningFactor;
-  nFullBinnsPerRow = bands/binningFactor;
-  nBandsBinned = (bands + binningFactor - 1) / binningFactor;
+  if(binningFactor>1){
+    if(sensorColumns%binningFactor==0){
+      nBandsBinned = sensorColumns/binningFactor;
+    }
+    else{
+      nBandsBinned = sensorColumns/binningFactor + 1;
+    }
+  }
+
 
   if(1){//TODO cubeformat enum, now bil
-
+    singleImageMemSize = sensorRows*sensorColumns;
     cubeColumns = sensorRows*nBandsBinned;
     cubeRows = nSingleFrames;
 
   }
+
 
   int errorCode = is_PixelClock(hCam, IS_PIXELCLOCK_CMD_SET,
                         (void*)&nPixelClock,
@@ -139,127 +144,195 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   }
   is_InitImageQueue (hCam, 0);
 
-  binnedImages = new unsigned char*[nSingleFrames];
-  for(int image=0; image<nSingleFrames; image++){
+  binnedImages = new unsigned char*[nSingleFrames+1];
+  for(int image=0; image<nSingleFrames+1; image++){
     binnedImages[image] = new unsigned char[nBandsBinned*sensorRows];//TODO pixeldepth
   }
 
-  errorCode = is_SetFrameRate(hCam, frameRate, &frameRate);
+  //////////////Temperature/////////////////////
+  /*
+  double fTemperature = 0;
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_TEMPERATURE,
+                      (void*)&fTemperature, sizeof(fTemperature));
+  printf("Internal camera temperature: %f", fTemperature);
+
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_SENSOR_TEMPERATURE_NUMERICAL_VALUE,
+                      (void*)&fTemperature, sizeof(fTemperature));
+  printf("Internal temperature: %f", fTemperature);
+
+  INT nTemperatureStatus = 0;
+  is_DeviceFeature(hCam, IS_DEVICE_FEATURE_CMD_GET_TEMPERATURE_STATUS, &nTemperatureStatus, sizeof(nTemperatureStatus));
+  printf("Temperature status: %i", nTemperatureStatus);
+*/
+  // is_DeviceFeature (hCam, IS_DEVICE_FEATURE_CMD_GET_SENSOR_TEMPERATURE_NUMERICAL_VALUE, void* pParam, UINT cbSizeOfParam)
+}
+
+void HSICamera::runCubeCapture(){
+  printf("Starting image capture\n");
+/////////////////Freerun mode //////////////
+
+  double fps = frameRate;
+  int errorCode;
+  errorCode = is_SetFrameRate(hCam, fps, &fps);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
   };
+
 
   errorCode = is_CaptureVideo (hCam, IS_WAIT);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
   };
 
-}
-
-void HSICamera::runCubeCapture(){
-  printf("Starting image capture\n");
-  /////////////////Freerun mode //////////////
-
+  char** ppcMem = new char*[nSingleFrames];
   char* rawImageP;
-
+  ppcMem[0] = NULL;
   int imageSequenceID = 1; // = new int[nSingleFrames];
-  for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
-    is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
-    // printf("Image nr: %i\n", imageNumber);
-    /////Binning
-    if(meanBinning){
-      for(int row=0; row<sensorRows; row++){
-        int rowOffset = row*sensorColumns;
-        int binnedIdxOffset = row*nBandsBinned;
+  if(1){//if this is bsq
+    printf("RUN\n");
+    for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
+      is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+      // printf("Image nr: %i\n", imageNumber);
+      /////Binning
+      if(binningFactor>1){
+        if(meanBinning){
+        int factorLastBands = bands%binningFactor;
+        int nBinningsPerRow = bands/binningFactor;
+        int nColumnsBinned = (bands + binningFactor - 1) / binningFactor;
 
-        #pragma omp parallel for num_threads(2)
-        for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-          int binOffset = binnIterator*binningFactor;
-          int totPixVal = 0;
 
-          totPixVal += (int)rawImageP[rowOffset+binOffset+0];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+1];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+2];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+3];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+4];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+5];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+6];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+7];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+8];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+9];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+10];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+11];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+12];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+13];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+14];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+15];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+16];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+17];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+18];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+19];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+20];
+          for(int row=0; row<sensorRows; row++){
+            int rowOffset = row*sensorColumns;
+            int binnedIdxOffset = row*nColumnsBinned;
+            #pragma omp parallel for num_threads(2)
+            for(int binnIterator=0; binnIterator<nBinningsPerRow; binnIterator++){
+              int binOffset = binnIterator*binningFactor;
+              int totPixVal = 0;
+              totPixVal += (int)rawImageP[rowOffset+binOffset+0];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+1];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+2];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+3];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+4];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+5];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+6];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+7];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+8];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+9];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+10];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+11];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+12];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+13];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+14];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+15];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+16];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+17];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+18];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+19];
+              totPixVal += (int)rawImageP[rowOffset+binOffset+20];
 
-          //   // TODO Char arithmatic
-
-          binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (unsigned char)(totPixVal/binningFactor);
-          // printf("row=%i binnIterator=%i\n",row, binnIterator);
-        }
-        if(factorLastBands>0){
-          char totPixVal = 0;
-          for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
-            totPixVal = rawImageP[nFullBinnsPerRow*binningFactor+pixelIterator];
+              // for(int pixelIterator=0; pixelIterator<binningFactor; pixelIterator++){
+              //   // TODO Char arithmatic
+              //
+              //
+              //   totPixVal += rawImageP[rowOffset+binOffset+pixelIterator];
+              //   // totPixVal += (int)rawImageP[1];
+              // }
+              // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset];
+              binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (unsigned char)(totPixVal/binningFactor);
+              // printf("row=%i binnIterator=%i\n",row, binnIterator);
+            }
+            if(factorLastBands>0){
+              char totPixVal = 0;
+              for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
+                // TODO Char arithmatic
+                totPixVal = rawImageP[nBinningsPerRow*binningFactor+pixelIterator];
+              }
+              binnedImages[imageNumber][binnedIdxOffset+nBinningsPerRow] = rawImageP[nBinningsPerRow*binningFactor];
+              // binnedImages[imageNumber][binnedIdxOffset+nBinningsPerRow] = (unsigned char)totPixVal/factorLastBands;
+            }
           }
-          binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP[nFullBinnsPerRow*binningFactor];
+        }
+
+        else{
+          int factorLastBands = bands%binningFactor;
+          int nBinningsPerRow = bands/binningFactor;
+          int nColumnsBinned = (bands + binningFactor - 1) / binningFactor;
+
+
+            for(int row=0; row<sensorRows; row++){
+              int rowOffset = row*sensorColumns;
+              int binnedIdxOffset = row*nColumnsBinned;
+              // printf("row=%i\n",row);
+              // #pragma omp parallel for num_threads(2)
+              for(int binnIterator=0; binnIterator<nBinningsPerRow; binnIterator++){
+                int binOffset = binnIterator*binningFactor;
+                printf("row=%i binOffset=%i\n",row, binOffset);
+                // insertionSort((unsigned char*)(&rawImageP[rowOffset+binOffset]), binningFactor);
+                // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
+                binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
+                // random_selection((unsigned char*)(&rawImageP), rowOffset+binOffset, rowOffset+binOffset+20, 10);
+
+                // quickSort((unsigned char*)(&rawImageP), binnedIdxOffset+binnIterator, binnedIdxOffset+binnIterator+20);
+                //
+                // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
+
+              }
+
+            }
         }
       }
+      is_UnlockSeqBuf (hCam, 1, rawImageP);
+      // printf("Tick %i\n", imageNumber);
+    }
+    for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
+      is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
+
     }
 
-    else{
-      for(int row=0; row<sensorRows; row++){
-        int rowOffset = row*sensorColumns;
-        int binnedIdxOffset = row*nBandsBinned;
-        // printf("row=%i\n",row);
-        // #pragma omp parallel for num_threads(2)
-        for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-          int binOffset = binnIterator*binningFactor;
-          printf("row=%i binOffset=%i\n",row, binOffset);
-          // insertionSort((unsigned char*)(&rawImageP[rowOffset+binOffset]), binningFactor);
-          // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
-          binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
-          // random_selection((unsigned char*)(&rawImageP), rowOffset+binOffset, rowOffset+binOffset+20, 10);
-          // quickSort((unsigned char*)(&rawImageP), binnedIdxOffset+binnIterator, binnedIdxOffset+binnIterator+20);
-          // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
-        }
-      }
-    }
+    // Get pointer to new image
+    // Bin image
+    //  Loop
+    printf("Images captured\n");
+    // writeRawDataToFile(ppcMem, nSingleFrames, sensorRows*sensorColumns);
+    // printf("Raw data written to file\n");
+    // *(unsigned char*)(&ppcMem); //Reinterpret cast
 
-    is_UnlockSeqBuf (hCam, 1, rawImageP);
-  }
-
-
-  for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
-    is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
-  }
-
-  printf("Images captured\n");
 
 ///Make cube
-  if(1){//BIL
-    hsiCube = new char*[cubeRows];
-    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-      hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
-    }
+hsiCube = new char*[cubeRows];
+for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+  hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
+}
+printf("Allocated mem for cube\n");
+      for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+        // printf("Cube row: %d\n",cubeRow);
+        //TODO Binning
+        // Put rows together
+        // store them in new array
 
 
-    printf("Allocated mem for cube\n");
-    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-      for(int band=0; band<nBandsBinned; band++){
-        for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
-          hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = binnedImages[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
+
+        for(int band=0; band<nBandsBinned; band++){
+          for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+            hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = binnedImages[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
+          }
         }
+
+/*
+        for(int band=0; band<bands; band++){
+          for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+            hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = ppcMem[cubeRow][sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
+          }
+        }
+*/
       }
-    }
+
+
+
+
   }
+
+
 /*
   /////////////////////////////////Trigger mode /////////////////////
 
@@ -283,9 +356,36 @@ void HSICamera::runCubeCapture(){
   printf("Writing cube to file\n");
   writeCubeToFile();
   printf("New cube written to file\n");
+  // writeBandsToSeparateFiles();
+  // printf("Grayscale images written to folder\n");
 }
 
 void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
+  /*
+  std::ofstream ofs;
+  auto time_now = std::time(0);
+  std::stringstream ss;
+  ss << time_now;
+  std::string timeString = ss.str();
+  timeString = "./capture/" + timeString + "SensorData.raw";
+  */
+  /*
+  printf("Trying to open: %s\n", timeString.c_str());
+  ofs.open( timeString, std::ofstream::binary|std::ios_base::app );
+  if (!ofs.is_open())
+  {
+    printf("ofs not open\n");
+  }
+  // ofs.write( pMem, sensorColumns*sensorRows );//TODO bitDepth
+  const char linebreak = '\n';
+  for(int i=0; i<nRows; i++){
+    ofs.write( rawImages[i], nColumns );
+    //ofs.write( &linebreak, 1 );
+    // ofs << hsiCube[i];
+    // ofs << "\n";
+  }
+  ofs.close();
+  */
 
   struct timespec timeSystem;
   clock_gettime(CLOCK_REALTIME, &timeSystem);
@@ -309,6 +409,31 @@ void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
 }
 
 void HSICamera::writeCubeToFile(){
+  /*
+  std::ofstream ofs;
+  auto time_now = std::time(0);
+  std::stringstream ss;
+  ss << std::put_time(std::gmtime(&time_now), "%c %Z");
+  std::string timeString = ss.str();
+  timeString = "/home/andreas/HSIProject/capture/" + timeString + ".raw";
+*/
+  /*
+  printf("Trying to open: %s\n", timeString.c_str());
+  ofs.open( timeString, std::ofstream::binary|std::ios_base::app );
+  if (!ofs.is_open())
+  {
+    printf("ofs not open\n");
+  }
+  // ofs.write( pMem, sensorColumns*sensorRows );//TODO bitDepth
+  const char linebreak = '\n';
+  for(int i=0; i<cubeRows; i++){
+    ofs.write( hsiCube[i], cubeColumns );
+    //ofs.write( &linebreak, 1 );
+    // ofs << hsiCube[i];
+    // ofs << "\n";
+  }
+  ofs.close();
+*/
   struct timespec timeSystem;
   clock_gettime(CLOCK_REALTIME, &timeSystem);
   char timeSystemString[32];
@@ -338,11 +463,23 @@ void HSICamera::writeCubeToFile(){
 
 void HSICamera::captureSingleImage(){
   is_FreezeVideo(hCam, IS_WAIT);
-  printf("Took a single picture\n");
+  printf("Took a picture\n");
   writeSingleToFile();
 }
 
 void HSICamera::writeSingleToFile(){
+/*
+  auto time_now = std::time(0);
+  std::stringstream ss;
+  ss << time_now;
+  std::string timeString = ss.str();
+  timeString = "/home/andreas/HSIProject/capture/" + timeString + ".raw";
+  */
+  /*
+  std::ofstream ofs;
+  ofs.open( timeString, std::ofstream::binary );
+  ofs.write( memSingleImage, sensorColumns*sensorRows );//TODO bitDepth
+  ofs.close();*/
 
   struct timespec timeSystem;
   clock_gettime(CLOCK_REALTIME, &timeSystem);
@@ -412,7 +549,7 @@ void HSICamera::writeBandsToSeparateFiles(){
   // }
 }
 
-////////////////////////////Sorting algorithms/////////////////////////////////
+
 int HSICamera::random_partition(unsigned char* arr, int start, int end)
 {
     // srand(time(NULL));
