@@ -12,8 +12,12 @@ int rows = 1735;
 char* buffer;
 char** waveLengths;
 
-int main()
+int main(int argc, char* argv[])
 {
+  if (argc<2) {
+    puts("Usage: a.out [PATH TO RAW]");
+    return -1;
+  }
     // buffer = malloc(columns*bands*rows);
     buffer = new char[columns*bands*rows];
     printf("NJINI\n");
@@ -21,7 +25,7 @@ int main()
     for(int band=0; band<bands; band++){
       waveLengths[band] = new char[rows*columns];
     }
-    std::ifstream input( "482867426Cube.raw", std::ios::in | std::ios::binary );
+    std::ifstream input( argv[1], std::ios::in | std::ios::binary );
     if (!input)
    {
        std::cout << "Failed to open file\n";

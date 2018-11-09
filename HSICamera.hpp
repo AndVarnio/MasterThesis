@@ -3,7 +3,7 @@
 #include<string.h>
 #include <stdlib.h>
 #include<time.h>
-
+#include <sys/time.h>
 // #include <opencv2/highgui.hpp>
 
 class HSICamera
@@ -27,8 +27,8 @@ class HSICamera
       int cubeRows = 25;
 
       const int nSingleFrames = 1735;
-      const int nRawImagesInMemory = 100;
-      double frameRate = 16.0;
+      const int nRawImagesInMemory = 120;
+      double frameRate = 32.0;
 
       int bands;
       int nBandsBinned;
@@ -114,15 +114,15 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the color mode, error code: %d\n", errorCode);
   };
 
-  errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  };
+  // errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  // };
   /////////////Set imagememory for triggermode//////////////////////
 /*
   is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
@@ -161,57 +161,64 @@ void HSICamera::runCubeCapture(){
   /////////////////Freerun mode //////////////
 
   char* rawImageP;
+  clock_t time_spent = 0;
+  int imnr = 1;
+  double timtot = 0.0;
+  struct timeval  tv1, tv2, tv3;
 
   int imageSequenceID = 1; // = new int[nSingleFrames];
   for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
     is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
     // printf("Image nr: %i\n", imageNumber);
     /////Binning
+    gettimeofday(&tv1, NULL);
     if(meanBinning){
+
+      #pragma omp parallel for num_threads(2)
       for(int row=0; row<sensorRows; row++){
-        int rowOffset = row*sensorColumns;
-        int binnedIdxOffset = row*nBandsBinned;
+  int rowOffset = row*sensorColumns;
+  int binnedIdxOffset = row*nBandsBinned;
 
-        #pragma omp parallel for num_threads(2)
-        for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-          int binOffset = binnIterator*binningFactor;
-          int totPixVal = 0;
+  int binOffset = 0;
+  for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
 
-          totPixVal += (int)rawImageP[rowOffset+binOffset+0];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+1];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+2];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+3];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+4];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+5];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+6];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+7];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+8];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+9];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+10];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+11];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+12];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+13];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+14];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+15];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+16];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+17];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+18];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+19];
-          totPixVal += (int)rawImageP[rowOffset+binOffset+20];
+    int totPixVal = 0;
 
-          //   // TODO Char arithmatic
+    totPixVal += (int)rawImageP[rowOffset+binOffset+0];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+1];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+2];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+3];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+4];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+5];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+6];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+7];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+8];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+9];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+10];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+11];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+12];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+13];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+14];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+15];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+16];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+17];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+18];
+    totPixVal += (int)rawImageP[rowOffset+binOffset+19];
 
-          binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (unsigned char)(totPixVal/binningFactor);
-          // printf("row=%i binnIterator=%i\n",row, binnIterator);
-        }
-        if(factorLastBands>0){
-          char totPixVal = 0;
-          for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
-            totPixVal = rawImageP[nFullBinnsPerRow*binningFactor+pixelIterator];
-          }
-          binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP[nFullBinnsPerRow*binningFactor];
-        }
-      }
+    binOffset += binningFactor;
+    //   // TODO Char arithmatic
+
+    binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (unsigned char)(totPixVal/binningFactor);
+    // printf("row=%i binnIterator=%i\n",row, binnIterator);
+  }
+  if(factorLastBands>0){
+    char totPixVal = 0;
+    for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
+      totPixVal = rawImageP[nFullBinnsPerRow*binningFactor+pixelIterator];
+    }
+    binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP[nFullBinnsPerRow*binningFactor];
+  }
+}
     }
 
     else{
@@ -232,16 +239,24 @@ void HSICamera::runCubeCapture(){
         }
       }
     }
-
+    gettimeofday(&tv2, NULL);
+    timtot +=  (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+    // printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
     is_UnlockSeqBuf (hCam, 1, rawImageP);
   }
 
+  printf("%f\n", timtot);
+  // printf("%li\n", (((double)time_spent/nSingleFrames)/CLOCKS_PER_SEC));
 
   for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
     is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
   }
 
   printf("Images captured\n");
+
+
+gettimeofday(&tv1, NULL);
+
 
 ///Make cube
   if(1){//BIL
@@ -260,6 +275,10 @@ void HSICamera::runCubeCapture(){
       }
     }
   }
+
+  /* stuff to do! */
+  gettimeofday(&tv2, NULL);
+  printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
 /*
   /////////////////////////////////Trigger mode /////////////////////
 
@@ -297,7 +316,6 @@ void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
   strcat(filePath, timeSystemString);
   strcat(filePath, "SensorData.raw");
 
-
   FILE * fp;
   fp = fopen (filePath,"wb");
 
@@ -320,6 +338,8 @@ void HSICamera::writeCubeToFile(){
   strcat(filePath, "Cube.raw");
 
   printf("Trying to open: %s\n", filePath);
+  struct timeval  tv1, tv2;
+  gettimeofday(&tv1, NULL);
 
   FILE * fp;
   fp = fopen (filePath,"wb");
@@ -328,13 +348,16 @@ void HSICamera::writeCubeToFile(){
     printf("\nFile cant be opened");
     return;
   }
-
   for(int i=0; i<cubeRows; i++){
-    fwrite (hsiCube[i], sizeof(char), cubeColumns, fp);//TODO bitDepth
-  }
-  fclose (fp);
+      fwrite (hsiCube[i], sizeof(char), cubeColumns, fp);//TODO bitDepth
+    }
+    fclose (fp);
 
+    gettimeofday(&tv2, NULL);
+    printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
 }
+
+
 
 void HSICamera::captureSingleImage(){
   is_FreezeVideo(hCam, IS_WAIT);
