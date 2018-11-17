@@ -11,6 +11,8 @@ int rows = 1735;
 
 char* buffer;
 char** waveLengths;
+char** rawImages;
+char **hsiCube;
 
 int main(int argc, char* argv[])
 {
@@ -20,7 +22,7 @@ int main(int argc, char* argv[])
   }
     // buffer = malloc(columns*bands*rows);
     buffer = new char[columns*bands*rows];
-
+    printf("NJINI\n");
     waveLengths = new char*[bands];
     for(int band=0; band<bands; band++){
       waveLengths[band] = new char[rows*columns];
@@ -53,35 +55,52 @@ int main(int argc, char* argv[])
       }
     }
 
-    std::stringstream ss;
-    ss << argv[1];
-    std::string folderName = ss.str();
-    std::string newDirectory = "mkdir -p ./" +folderName+".Images";
-    system(newDirectory.c_str());
+    rawImages = new char*[rows];
+    for(int x=0; x<rows; x++){
+      rawImages[x] = new char[bands*columns];
+    }
 
-
-
+    int rawImageLength = bands*columns;
+    for(int imageNr=0; imageNr<rows; imageNr++){
       for(int band=0; band<bands; band++){
-
-        std::string filename = "./" +folderName+".Images" + "/" + std::to_string(band) + ".png";
-        cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[band]);
-        imwrite(filename,grayScaleMat);
+        for(int pixel=0; pixel<columns; pixel++){
+          rawImages[imageNr][(columns-1)*bands-pixel*bands+band] = buffer[imageNr*rawImageLength+band*columns+pixel];
+        }
       }
 
-      //Make RGB image
+    }
 
-      std::vector<cv::Mat> rgbChannels;
+    int cubeRows = 1735;
+    int nBandsBinned = bands;
+    int sensorRows = 1080;
+    int cubeColumns = sensorRows*nBandsBinned;
+
+    hsiCube = new char*[cubeRows];
+    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
+    }
 
 
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[22]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[30]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[45]));
+    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      for(int pixel=0; pixel<sensorRows; pixel++){
+        for(int band=0; band<nBandsBinned; band++){
+          hsiCube[cubeRow][pixel*nBandsBinned+band] = rawImages[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixel+band];
+        }
+      }
+    }
 
-          cv::Mat rgbImage;
-          cv::merge(rgbChannels, rgbImage);
-          std::string filename = "./" +folderName+".Images" + "/" + "color" + ".png";
-          imwrite(filename,rgbImage);
 
+    FILE * fp;
+    fp = fopen ("testBIP","wb");
+
+    if (fp==NULL){
+      printf("\nFile cant be opened");
+      return 0;
+    }
+    for(int i=0; i<cubeRows; i++){
+        fwrite (hsiCube[i], sizeof(char), cubeColumns, fp);//TODO bitDepth
+      }
+      fclose (fp);
 
 
     delete waveLengths;

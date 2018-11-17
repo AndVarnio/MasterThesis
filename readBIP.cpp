@@ -44,11 +44,19 @@ int main(int argc, char* argv[])
       printf("Error, read only %i out of %li characters\n", lengthFile, input.gcount());
 
 
-    #pragma omp parallel for num_threads(4)
+    // #pragma omp parallel for num_threads(4)
     for(int band=0; band<bands; band++){
       for(int row=0; row<rows; row++){
         for(int column=0; column<columns; column++){
-          waveLengths[band][row*columns+column] = buffer[row*bands*columns+band*columns+column];
+          waveLengths[band][row*columns+column] = buffer[band+row*bands*column+column*bands];
+        }
+      }
+    }
+
+    for(int band=0; band<bands; band++){
+      for(int row=0; row<rows; row++){
+        for(int pixel=0; pixel<columns; pixel++){
+          waveLengths[band][row*columns+pixel] = buffer[row*bands*columns+pixel*bands+band];
         }
       }
     }

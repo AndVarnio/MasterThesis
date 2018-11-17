@@ -53,6 +53,15 @@ int main(int argc, char* argv[])
       }
     }
 
+    int totPixelsInOneGrayImage = rows*columns;
+    for(int band=0; band<bands; band++){
+      for(int row=0; row<rows; row++){
+        for(int pixelInRow=0; pixelInRow<columns; pixelInRow++){
+          waveLengths[band][row*columns+pixelInRow] = buffer[band*totPixelsInOneGrayImage+row*columns+pixelInRow];
+        }
+      }
+    }
+
     std::stringstream ss;
     ss << argv[1];
     std::string folderName = ss.str();

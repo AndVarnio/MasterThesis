@@ -293,11 +293,11 @@ for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
       }
     }
   }
-  else{
+  else{//BSQ
     for(int band=0; band<nBandsBinned; band++){
       for(int rowSpatial=0; rowSpatial<nSingleFrames; rowSpatial++){
-        for(int pixelInCubeRow=0; pixelInCubeRow<cubeRows; pixelInCubeRow++){
-          hsiCube[band*nSingleFrames+rowSpatial][pixelInCubeRow] = binnedImages[rowSpatial][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band]
+        for(int pixelInCubeRow=0; pixelInCubeRow<cubeColumns; pixelInCubeRow++){
+          hsiCube[band*nSingleFrames+rowSpatial][pixelInCubeRow] = rawImages[rowSpatial][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
         }
       }
     }
