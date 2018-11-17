@@ -4,7 +4,7 @@
 #include <opencv2/highgui.hpp>
 #include <omp.h>
 #include <iostream>
-// g++ readBIL.cpp `pkg-config --cflags --libs opencv`
+// g++ readBIL.cpp -o readBILCube `pkg-config --cflags --libs opencv`
 int columns = 1080;
 int bands = 96;
 int rows = 1735;
@@ -52,11 +52,37 @@ int main(int argc, char* argv[])
         }
       }
     }
-    printf("Images stored in arrays\n");
-    cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[25]);
-    cv::Size s = grayScaleMat.size();
-    printf("Height=%i - Width=%i\n",s.height, s.width);
-    imwrite("grayImage.png",grayScaleMat);
+
+    std::stringstream ss;
+    ss << argv[1];
+    std::string folderName = ss.str();
+    std::string newDirectory = "mkdir -p ./" +folderName+".Images";
+    system(newDirectory.c_str());
+
+
+
+      for(int band=0; band<bands; band++){
+
+        std::string filename = "./" +folderName+".Images" + "/" + std::to_string(band) + ".png";
+        cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[band]);
+        imwrite(filename,grayScaleMat);
+      }
+
+      //Make RGB image
+
+      std::vector<cv::Mat> rgbChannels;
+
+
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[22]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[30]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[45]));
+
+          cv::Mat rgbImage;
+          cv::merge(rgbChannels, rgbImage);
+          std::string filename = "./" +folderName+".Images" + "/" + "color" + ".png";
+          imwrite(filename,rgbImage);
+
+
 
     delete waveLengths;
     return 0;

@@ -27,7 +27,7 @@ class HSICamera
       int cubeRows = 25;
 
       const int nSingleFrames = 1735;
-      const int nRawImagesInMemory = 120;
+      const int nRawImagesInMemory = 1735;
       double frameRate = 32.0;
 
       int bands;
@@ -35,7 +35,7 @@ class HSICamera
       int factorLastBands = 0;
       int nFullBinnsPerRow = 0;
       int binningFactor = 20;
-      bool meanBinning = true;
+      bool meanBinning = false;
 
       char** memSingleImageSequence = new char*[nRawImagesInMemory];
       char **hsiCube;
@@ -78,11 +78,15 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   nFullBinnsPerRow = bands/binningFactor;
   nBandsBinned = (bands + binningFactor - 1) / binningFactor;
 
-  if(1){//TODO cubeformat enum, now bil
+  if(1){//TODO cubeformat enum, now bil and bip
 
     cubeColumns = sensorRows*nBandsBinned;
     cubeRows = nSingleFrames;
 
+  }
+  else{//BSQ
+    cubeColumns = sensorRows;
+    cubeRows = nSingleFrames*nBandsBinned;
   }
 
   int errorCode = is_PixelClock(hCam, IS_PIXELCLOCK_CMD_SET,
@@ -118,11 +122,11 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   // if(errorCode!=IS_SUCCESS){
   //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
   // };
-  //
-  // errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  // };
+
+  errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  };
   /////////////Set imagememory for triggermode//////////////////////
 /*
   is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
@@ -222,6 +226,7 @@ void HSICamera::runCubeCapture(){
     }
 
     else{
+      // printf("imagenumber=%i\n",imageNumber);
       for(int row=0; row<sensorRows; row++){
         int rowOffset = row*sensorColumns;
         int binnedIdxOffset = row*nBandsBinned;
@@ -229,10 +234,10 @@ void HSICamera::runCubeCapture(){
         // #pragma omp parallel for num_threads(2)
         for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
           int binOffset = binnIterator*binningFactor;
-          printf("row=%i binOffset=%i\n",row, binOffset);
+          // printf("row=%i binOffset=%i\n",row, binOffset);
           // insertionSort((unsigned char*)(&rawImageP[rowOffset+binOffset]), binningFactor);
           // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
-          binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
+          binnedImages[imageNumber][binnedIdxOffset+binnIterator] = random_selection((unsigned char*)&rawImageP[rowOffset+binOffset], 0, 20, 10);
           // random_selection((unsigned char*)(&rawImageP), rowOffset+binOffset, rowOffset+binOffset+20, 10);
           // quickSort((unsigned char*)(&rawImageP), binnedIdxOffset+binnIterator, binnedIdxOffset+binnIterator+20);
           // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP[rowOffset+binOffset+10];
@@ -258,12 +263,14 @@ void HSICamera::runCubeCapture(){
 gettimeofday(&tv1, NULL);
 
 
+hsiCube = new char*[cubeRows];
+for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+  hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
+}
+
 ///Make cube
   if(1){//BIL
-    hsiCube = new char*[cubeRows];
-    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-      hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
-    }
+
 
 
     printf("Allocated mem for cube\n");
@@ -275,7 +282,27 @@ gettimeofday(&tv1, NULL);
       }
     }
   }
+  else if(1){//BIP
 
+
+    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      for(int pixel=0; pixel<sensorRows; pixel++){
+        for(int band=0; band<nBandsBinned; band++){
+          hsiCube[cubeRow][pixel*nBandsBinned+band] = binnedImages[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixel+band];
+        }
+      }
+    }
+  }
+  else{
+    for(int band=0; band<nBandsBinned; band++){
+      for(int rowSpatial=0; rowSpatial<nSingleFrames; rowSpatial++){
+        for(int pixelInCubeRow=0; pixelInCubeRow<cubeRows; pixelInCubeRow++){
+          hsiCube[band*nSingleFrames+rowSpatial][pixelInCubeRow] = binnedImages[rowSpatial][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band]
+        }
+      }
+    }
+
+  }
   /* stuff to do! */
   gettimeofday(&tv2, NULL);
   printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
@@ -332,8 +359,8 @@ void HSICamera::writeCubeToFile(){
   char timeSystemString[32];
   sprintf(timeSystemString, "%lli", (long long)timeSystem.tv_nsec);
   char filePath[64];
-  strcpy(filePath, "/home/root/capture/");
-  // strcpy(filePath, "/home/andreas/HSIProject/capture/");
+  // strcpy(filePath, "/home/root/capture/");
+  strcpy(filePath, "/home/andreas/HSIProject/capture/");
   strcat(filePath, timeSystemString);
   strcat(filePath, "Cube.raw");
 
