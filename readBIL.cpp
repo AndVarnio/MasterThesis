@@ -73,9 +73,9 @@ int main(int argc, char* argv[])
       std::vector<cv::Mat> rgbChannels;
 
 // RGB: 25 33 47
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[9]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[72]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[82]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[22]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[32]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[49]));
 
           cv::Mat rgbImage;
           cv::merge(rgbChannels, rgbImage);
