@@ -31,9 +31,9 @@ class HSICamera
       int cubeColumns;
       int cubeRows = 25;
 
-      int nSingleFrames = 1000;
+      int nSingleFrames = 100;
       const int nRawImagesInMemory = 1000;
-      double frameRate = 32.0;
+      double frameRate = 20.0;
 
       int bands;
       int nBandsBinned;
@@ -52,6 +52,7 @@ class HSICamera
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
       void writeRawDataToFile(char** rawImages, int nRows, int nColumns);
+      void writeRawDataToFile(uint16_t* image, int imageNumber);
 
       int random_partition(unsigned char* arr, int start, int end);
       int random_selection(unsigned char* arr, int start, int end, int k);
@@ -68,6 +69,7 @@ HSICamera::HSICamera(){
   INT success = is_InitCamera(&hCam, NULL);
   if(success!=IS_SUCCESS){
     printf("Failed to initialize camera!\n");
+    exit (EXIT_FAILURE);
   }
 }
 
@@ -106,6 +108,10 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with the pixel clock, error code: %d\n", errorCode);
   };
+
+  double min, max, intervall;
+  is_GetFrameTimeRange (hCam, &min, &max, &intervall);
+  printf("min: %f max: %f intervall: %f", min, max, intervall);
 
   errorCode = is_SetDisplayMode(hCam, IS_SET_DM_DIB);
   if(errorCode!=IS_SUCCESS){
@@ -197,7 +203,7 @@ void HSICamera::swTriggerCapture(){
           hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = memSingleImage[sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
         }
       }
-        // usleep(captureInterval);
+        // usleep(20000);
     }
 }
 void HSICamera::freeRunCapture(){
@@ -207,53 +213,86 @@ void HSICamera::freeRunCapture(){
   int imageSequenceID = 1;
   int lastPixelInRowOffset = nFullBinnsPerRow*binningFactor;
   for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
-    is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+    // printf("Wait for a image\n");
     gettimeofday(&tv1, NULL);
+    int errorCode;
+
+    do{
+      errorCode = is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+
+      if(errorCode!=IS_SUCCESS){
+        is_UnlockSeqBuf (hCam, 1, rawImageP);
+        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+        // if(errorCode==IS_CANT_OPEN_DEVICE){
+        //   INT success = is_ExitCamera (hCam);
+        //   if(success!=IS_SUCCESS){
+        //     printf("Failed to exit camera! Error code: %d\n", success);
+        //     // exit (EXIT_FAILURE);
+        //   }
+        //   success = is_InitCamera(&hCam, NULL);
+        //   if(success!=IS_SUCCESS){
+        //     printf("Failed to initialize camera! Error code: %d\n", success);
+        //     // exit (EXIT_FAILURE);
+        //   }
+        // }
+      }
+    }while(errorCode!=IS_SUCCESS);
+
+    // printf("recieved new frame\n");
+
     uint16_t* rawImageP16Bit = reinterpret_cast<uint16_t*>(&rawImageP);
     uint16_t* newPointer = rawImageP16Bit;
 
     uint16_t pointerToNew16BitArray[sensorRows*sensorColumns];
+
+    // printf("cmoskdvod\n");
     for(int i=0; i<sensorRows*sensorColumns; i++){
       pointerToNew16BitArray[i] = uint16_t(rawImageP[i*2]) << 8 | rawImageP[i*2+1] ;
     }
+
+    // printf("Writing to storage\n");
+    writeRawDataToFile(pointerToNew16BitArray, imageSequenceID);
+    // printf("Stored\n");
     // gettimeofday(&tv2, NULL);
     // printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
     /////Binning
 
-    #pragma omp parallel for num_threads(2)
-    for(int row=0; row<sensorRows; row++){
-      int rowOffset = row*sensorColumns;
-      int binnedIdxOffset = row*nBandsBinned;
-
-      int binOffset = 0;
-      // printf("%d\n", *(rawImageP+rowOffset));
-      for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-        int rowAndBinOffset = rowOffset+binOffset;
-
-        // printf("fp%p\n", pointerToNew16BitArray);
-        // printf("fv%u\n", pointerToNew16BitArray[1]);
-        bubbleSort(pointerToNew16BitArray+rowAndBinOffset, binningFactor);
-        // insertionSort(pointerToNew16BitArray, rowAndBinOffset, binningFactor);
-        // printf("rawImageP p after %p\n", rawImageP);
-        //
-        // printf("newPointer p after %p\n", newPointer);
-        // printf("newPointer v after %u\n", newPointer[1]);
-        //
-        // printf("p after %p\n", pointerToNew16BitArray);
-        // printf("v after %u\n", pointerToNew16BitArray[1]);
-        // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP16Bit[rowAndBinOffset+6];
-        binOffset += binningFactor;
-
-      }
-      // if(factorLastBands>0){
-      //   insertionSort(rawImageP16Bit+lastPixelInRowOffset, factorLastBands);
-      //   binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP16Bit[lastPixelInRowOffset+(factorLastBands/2)];
-      // }
-    }
+    // #pragma omp parallel for num_threads(2)
+    // for(int row=0; row<sensorRows; row++){
+    //   int rowOffset = row*sensorColumns;
+    //   int binnedIdxOffset = row*nBandsBinned;
+    //
+    //   int binOffset = 0;
+    //   // printf("%d\n", *(rawImageP+rowOffset));
+    //   for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
+    //     int rowAndBinOffset = rowOffset+binOffset;
+    //
+    //     // printf("fp%p\n", pointerToNew16BitArray);
+    //     // printf("fv%u\n", pointerToNew16BitArray[1]);
+    //     bubbleSort(pointerToNew16BitArray+rowAndBinOffset, binningFactor);
+    //     // insertionSort(pointerToNew16BitArray, rowAndBinOffset, binningFactor);
+    //     // printf("rawImageP p after %p\n", rawImageP);
+    //     //
+    //     // printf("newPointer p after %p\n", newPointer);
+    //     // printf("newPointer v after %u\n", newPointer[1]);
+    //     //
+    //     // printf("p after %p\n", pointerToNew16BitArray);
+    //     // printf("v after %u\n", pointerToNew16BitArray[1]);
+    //     // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP16Bit[rowAndBinOffset+6];
+    //     binOffset += binningFactor;
+    //
+    //   }
+    //   // if(factorLastBands>0){
+    //   //   insertionSort(rawImageP16Bit+lastPixelInRowOffset, factorLastBands);
+    //   //   binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP16Bit[lastPixelInRowOffset+(factorLastBands/2)];
+    //   // }
+    // }
+    // usleep(9000);
     gettimeofday(&tv2, NULL);
-    printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+    printf("%d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
     is_UnlockSeqBuf (hCam, 1, rawImageP);
     // exit(1);
+
   }
 
 
@@ -317,6 +356,30 @@ void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
   }
   fclose (fp);
 
+}
+
+void HSICamera::writeRawDataToFile(uint16_t* image, int imageNumber){
+
+  struct timespec timeSystem;
+  clock_gettime(CLOCK_REALTIME, &timeSystem);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)timeSystem.tv_nsec);
+  char filePath[64];
+
+  int num = 321;
+  char imageNumberS[5];
+  // itoa(imageNumber, imageNumberS, 10);
+  sprintf(imageNumberS, "%d", imageNumber);
+
+  strcpy(filePath, "/home/andreas/MasterThesis/capture/");
+  // strcat(filePath, timeSystemString);
+  strcat(filePath, imageNumberS);
+  strcat(filePath, "Single.raw");
+
+  FILE * fp;
+  fp = fopen (filePath,"wb");
+  fwrite (image, sizeof(uint16_t), sensorColumns*sensorRows, fp);//TODO bitDepth
+  fclose (fp);
 }
 
 void HSICamera::writeCubeToFile(){

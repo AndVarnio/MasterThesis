@@ -10,7 +10,7 @@ int main(int argc, char** argv){
   // camera.initialize(344, 6, 30, 1080, 1920, 8); //ui336
   // camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
   // TODO Different pixelclock USB 2.0
-  camera.initialize(344, 6, 60, 1080, 1920, 1000, Freerun, Bil);
+  camera.initialize(118, 36, 5, 1216, 1936, 2254, Freerun, Bil);
   camera.runCubeCapture();
   printf("Successss\n");
   // camera.captureSingleImage();
