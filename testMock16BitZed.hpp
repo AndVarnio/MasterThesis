@@ -65,12 +65,12 @@ class HSICamera
 };
 
 HSICamera::HSICamera(){
-  is_SetErrorReport (hCam, IS_ENABLE_ERR_REP);
-  INT success = is_InitCamera(&hCam, NULL);
-  if(success!=IS_SUCCESS){
-    printf("Failed to initialize camera!\n");
-    exit (EXIT_FAILURE);
-  }
+  // is_SetErrorReport (hCam, IS_ENABLE_ERR_REP);
+  // INT success = is_InitCamera(&hCam, NULL);
+  // if(success!=IS_SUCCESS){
+  //   printf("Failed to initialize camera!\n");
+  //   exit (EXIT_FAILURE);
+  // }
 }
 
 void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, cameraTriggerMode cameraMode, cubeFormat cube){
@@ -101,83 +101,84 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     cubeRows = nSingleFrames*nBandsBinned;
   }
 
-  ////////////////////Initialize///////////////////
-  int errorCode = is_PixelClock(hCam, IS_PIXELCLOCK_CMD_SET,
-                        (void*)&nPixelClock,
-                        sizeof(nPixelClock));
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the pixel clock, error code: %d\n", errorCode);
-  };
-
-  double min, max, intervall;
-  is_GetFrameTimeRange (hCam, &min, &max, &intervall);
-  printf("min: %f max: %f intervall: %f", min, max, intervall);
-
-  errorCode = is_SetDisplayMode(hCam, IS_SET_DM_DIB);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the display mode, error code: %d\n", errorCode);
-  };
-
-  UINT formatID = resolution;
-  errorCode = is_ImageFormat (hCam, IMGFRMT_CMD_SET_FORMAT, &formatID, 4);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the resolution setup, error code: %d\n", errorCode);
-  };
-
-  double expTime = exposureMs;
-  errorCode = is_Exposure(hCam, IS_EXPOSURE_CMD_SET_EXPOSURE, (void*)&expTime, sizeof(expTime));
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the exposure time, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetColorMode(hCam, IS_CM_MONO12);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the color mode, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  };
-
-  switch(triggerMode)
-  {
-    case Swtrigger  :
-      is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
-      is_SetImageMem(hCam, memSingleImage, memIDSingle);
-      printf("Allocated memory for single image\n");
-      is_SetExternalTrigger(hCam, IS_SET_TRIGGER_SOFTWARE);
-      break;
-
-    case Freerun:
-    for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
-      // printf("Adding imagememory %i\n", imageMemory);
-      is_AllocImageMem(hCam, sensorColumns, sensorRows, 16, &memSingleImageSequence[imageMemory], &imageMemory);
-      is_AddToSequence (hCam, memSingleImageSequence[imageMemory], imageMemory);
-    }
-    is_InitImageQueue (hCam, 0);
-
+  // ////////////////////Initialize///////////////////
+  // int errorCode = is_PixelClock(hCam, IS_PIXELCLOCK_CMD_SET,
+  //                       (void*)&nPixelClock,
+  //                       sizeof(nPixelClock));
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the pixel clock, error code: %d\n", errorCode);
+  // };
+  //
+  // double min, max, intervall;
+  // is_GetFrameTimeRange (hCam, &min, &max, &intervall);
+  // printf("min: %f max: %f intervall: %f", min, max, intervall);
+  //
+  // errorCode = is_SetDisplayMode(hCam, IS_SET_DM_DIB);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the display mode, error code: %d\n", errorCode);
+  // };
+  //
+  // UINT formatID = resolution;
+  // errorCode = is_ImageFormat (hCam, IMGFRMT_CMD_SET_FORMAT, &formatID, 4);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the resolution setup, error code: %d\n", errorCode);
+  // };
+  //
+  // double expTime = exposureMs;
+  // errorCode = is_Exposure(hCam, IS_EXPOSURE_CMD_SET_EXPOSURE, (void*)&expTime, sizeof(expTime));
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the exposure time, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetColorMode(hCam, IS_CM_MONO12);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the color mode, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  // };
+  //
+  // switch(triggerMode)
+  // {
+  //   case Swtrigger  :
+  //     is_AllocImageMem(hCam, sensorColumns, sensorRows, bitDepth, &memSingleImage, &memIDSingle);
+  //     is_SetImageMem(hCam, memSingleImage, memIDSingle);
+  //     printf("Allocated memory for single image\n");
+  //     is_SetExternalTrigger(hCam, IS_SET_TRIGGER_SOFTWARE);
+  //     break;
+  //
+  //   case Freerun:
+  //   for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
+  //     // printf("Adding imagememory %i\n", imageMemory);
+  //     is_AllocImageMem(hCam, sensorColumns, sensorRows, 16, &memSingleImageSequence[imageMemory], &imageMemory);
+  //     is_AddToSequence (hCam, memSingleImageSequence[imageMemory], imageMemory);
+  //   }
+  //   is_InitImageQueue (hCam, 0);
+  //
     binnedImages = new uint16_t*[nSingleFrames];
     for(int image=0; image<nSingleFrames; image++){
       binnedImages[image] = new uint16_t[nBandsBinned*sensorRows];//TODO pixeldepth
     }
+  //
+  //   errorCode = is_SetFrameRate(hCam, frameRate, &frameRate);
+  //   if(errorCode!=IS_SUCCESS){
+  //     printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
+  //   };
+  //
+  //   errorCode = is_CaptureVideo (hCam, IS_WAIT);
+  //   if(errorCode!=IS_SUCCESS){
+  //     printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
+  //   };
+  //   break;
+  // }
 
-    errorCode = is_SetFrameRate(hCam, frameRate, &frameRate);
-    if(errorCode!=IS_SUCCESS){
-      printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
-    };
-
-    errorCode = is_CaptureVideo (hCam, IS_WAIT);
-    if(errorCode!=IS_SUCCESS){
-      printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
-    };
-    break;
-  }
 }
 
 void HSICamera::runCubeCapture(){
@@ -194,17 +195,17 @@ void HSICamera::runCubeCapture(){
 }
 
 void HSICamera::swTriggerCapture(){
-    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-      is_FreezeVideo(hCam, IS_WAIT);
-        //TODO Binning
-
-      for(int band=0; band<bands; band++){
-        for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
-          hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = memSingleImage[sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
-        }
-      }
-        // usleep(20000);
-    }
+    // for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+    //   is_FreezeVideo(hCam, IS_WAIT);
+    //     //TODO Binning
+    //
+    //   for(int band=0; band<bands; band++){
+    //     for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+    //       hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = memSingleImage[sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
+    //     }
+    //   }
+    //     // usleep(20000);
+    // }
 }
 void HSICamera::freeRunCapture(){
   struct timeval  tv1, tv2, tv3;
@@ -215,44 +216,24 @@ void HSICamera::freeRunCapture(){
   for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
     // printf("Wait for a image\n");
     gettimeofday(&tv1, NULL);
-    int errorCode;
 
-    do{
-      errorCode = is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+// TODO Read next file XSingle.raw
+    char fileName[64];
 
-      if(errorCode!=IS_SUCCESS){
-        is_UnlockSeqBuf (hCam, 1, rawImageP);
-        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
-        // if(errorCode==IS_CANT_OPEN_DEVICE){
-        //   INT success = is_ExitCamera (hCam);
-        //   if(success!=IS_SUCCESS){
-        //     printf("Failed to exit camera! Error code: %d\n", success);
-        //     // exit (EXIT_FAILURE);
-        //   }
-        //   success = is_InitCamera(&hCam, NULL);
-        //   if(success!=IS_SUCCESS){
-        //     printf("Failed to initialize camera! Error code: %d\n", success);
-        //     // exit (EXIT_FAILURE);
-        //   }
-        // }
-      }
-    }while(errorCode!=IS_SUCCESS);
+    char imageNumberS[11];
+    sprintf(imageNumberS, "%d", imageNumber);
 
-    // printf("recieved new frame\n");
+    strcpy(fileName, imageNumberS);
+    strcat(fileName, "Single.raw");
+    printf("Reading file: %s\n", fileName);
+    FILE * pFile = fopen ( fileName , "rb" );
+    if (pFile==NULL) {fputs ("File error\n",stderr); exit (1);}
 
     uint16_t pointerToNew16BitArray[sensorRows*sensorColumns];
 
-    // printf("cmoskdvod\n");
-    for(int i=0; i<sensorRows*sensorColumns; i++){
-      pointerToNew16BitArray[i] = uint16_t(rawImageP[i*2]) << 8 | rawImageP[i*2+1] ;
-    }
-
-    // printf("Writing to storage\n");
-    writeRawDataToFile(pointerToNew16BitArray, imageNumber);
-    // printf("Stored\n");
-    // gettimeofday(&tv2, NULL);
-    // printf("%f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
-    /////Binning
+    size_t result = fread (pointerToNew16BitArray, 2, 1920*1080, pFile);
+    if (result != 1920*1080) {fputs ("Reading error",stderr); exit (3);}
+    fclose (pFile);
 
     #pragma omp parallel for num_threads(2)
     for(int row=0; row<sensorRows; row++){
@@ -260,31 +241,7 @@ void HSICamera::freeRunCapture(){
       int binnedIdxOffset = row*nBandsBinned;
 
       int binOffset = 0;
-      // printf("%d\n", *(rawImageP+rowOffset));
-      // for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-      //   int rowAndBinOffset = rowOffset+binOffset;
-      //
-      //   // printf("fp%p\n", pointerToNew16BitArray);
-      //   // printf("fv%u\n", pointerToNew16BitArray[1]);
-      //   bubbleSort(pointerToNew16BitArray+rowAndBinOffset, binningFactor);
-      //   // insertionSort(pointerToNew16BitArray, rowAndBinOffset, binningFactor);
-      //   // printf("rawImageP p after %p\n", rawImageP);
-      //   //
-      //   // printf("newPointer p after %p\n", newPointer);
-      //   // printf("newPointer v after %u\n", newPointer[1]);
-      //   //
-      //   // printf("p after %p\n", pointerToNew16BitArray);
-      //   // printf("v after %u\n", pointerToNew16BitArray[1]);
-      //   // binnedImages[imageNumber][binnedIdxOffset+binnIterator] = rawImageP16Bit[rowAndBinOffset+6];
-      //   binOffset += binningFactor;
-      //
-      // }
-      // // if(factorLastBands>0){
-      // //   insertionSort(rawImageP16Bit+lastPixelInRowOffset, factorLastBands);
-      // //   binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = rawImageP16Bit[lastPixelInRowOffset+(factorLastBands/2)];
-      // // }
       for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-
         int totPixVal = 0;
 
         totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+0];
@@ -299,21 +256,16 @@ void HSICamera::freeRunCapture(){
         totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+9];
         totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+10];
         totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+11];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+12];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+13];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+14];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+15];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+16];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+17];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+18];
-        // totPixVal += (int)rawImageP[rowOffset+binOffset+19];
 
         binOffset += binningFactor;
         //   // TODO Char arithmatic
 
         binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (uint16_t)(totPixVal/binningFactor);
         // printf("row=%i binnIterator=%i\n",row, binnIterator);
+        // printf("GOTOTOT\n" );
+
       }
+
       if(factorLastBands>0){
         char totPixVal = 0;
         for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
@@ -326,14 +278,14 @@ void HSICamera::freeRunCapture(){
     // usleep(9000);
     gettimeofday(&tv2, NULL);
     // printf("%d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
-    is_UnlockSeqBuf (hCam, 1, rawImageP);
+    // is_UnlockSeqBuf (hCam, 1, rawImageP);
     // exit(1);
 
   }
 
 
   for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
-    is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
+    // is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
   }
 
   hsiCube = new uint16_t*[cubeRows];
@@ -447,8 +399,8 @@ void HSICamera::writeCubeToFile(){
 
 
 void HSICamera::captureSingleImage(){
-  is_FreezeVideo(hCam, IS_WAIT);
-  writeSingleToFile();
+  // is_FreezeVideo(hCam, IS_WAIT);
+  // writeSingleToFile();
 }
 
 void HSICamera::writeSingleToFile(){

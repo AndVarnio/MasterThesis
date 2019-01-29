@@ -118,10 +118,10 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the color mode, error code: %d\n", errorCode);
   };
 
-  // errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  // };
+  errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  };
 
   errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
   if(errorCode!=IS_SUCCESS){
