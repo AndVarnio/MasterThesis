@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include<time.h>
 #include <sys/time.h>
+#include <arm_neon.h>
 // #include <opencv2/highgui.hpp>
 
 enum cubeFormat { Bil, Bip, Bsq };
@@ -32,7 +33,7 @@ class HSICamera
       int cubeRows = 25;
 
       int nSingleFrames = 100;
-      const int nRawImagesInMemory = 1000;
+      const int nRawImagesInMemory = 10;
       double frameRate = 32.0;
 
       int bands;
@@ -62,6 +63,7 @@ class HSICamera
       void quickSort(unsigned char arr[], int low, int high);
       void bubbleSort(uint16_t arr[], int n);
       void swap(uint16_t *xp, uint16_t *yp);
+      void bitonicMerge12(uint16_t* arr);
 };
 
 HSICamera::HSICamera(){
@@ -209,14 +211,17 @@ void HSICamera::swTriggerCapture(){
 }
 void HSICamera::freeRunCapture(){
   struct timeval  tv1, tv2, tv3;
-
+  double totTime = 0;
   char* rawImageP;
   int imageSequenceID = 1;
   int lastPixelInRowOffset = nFullBinnsPerRow*binningFactor;
+
+  uint16_t* binnedImage = new uint16_t[nBandsBinned*sensorRows];
+
   for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
     // printf("Wait for a image\n");
-    gettimeofday(&tv1, NULL);
 
+    gettimeofday(&tv3, NULL);
 // TODO Read next file XSingle.raw
     char fileName[64];
 
@@ -225,7 +230,7 @@ void HSICamera::freeRunCapture(){
 
     strcpy(fileName, imageNumberS);
     strcat(fileName, "Single.raw");
-    printf("Reading file: %s\n", fileName);
+
     FILE * pFile = fopen ( fileName , "rb" );
     if (pFile==NULL) {fputs ("File error\n",stderr); exit (1);}
 
@@ -235,93 +240,143 @@ void HSICamera::freeRunCapture(){
     if (result != 1920*1080) {fputs ("Reading error",stderr); exit (3);}
     fclose (pFile);
 
+    gettimeofday(&tv1, NULL);
+    printf("Reading %d %f\n", imageNumber, (double) (tv1.tv_usec - tv3.tv_usec) / 1000000 + (double) (tv1.tv_sec - tv3.tv_sec));
+
     #pragma omp parallel for num_threads(2)
     for(int row=0; row<sensorRows; row++){
       int rowOffset = row*sensorColumns;
       int binnedIdxOffset = row*nBandsBinned;
 
       int binOffset = 0;
+
       for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-        int totPixVal = 0;
 
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+0];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+1];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+2];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+3];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+4];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+5];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+6];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+7];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+8];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+9];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+10];
-        totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+11];
+        int rowAndBinOffset = rowOffset+binOffset;
+        // printf("rowAndBinOffset %d\n", rowAndBinOffset);
 
+        bitonicMerge12(pointerToNew16BitArray+rowAndBinOffset);
+        binnedImage[binnedIdxOffset+binnIterator] = pointerToNew16BitArray[rowAndBinOffset+6];
         binOffset += binningFactor;
-        //   // TODO Char arithmatic
-
-        binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (uint16_t)(totPixVal/binningFactor);
-        // printf("row=%i binnIterator=%i\n",row, binnIterator);
-        // printf("GOTOTOT\n" );
-
       }
-
       if(factorLastBands>0){
-        char totPixVal = 0;
-        for(int pixelIterator=0; pixelIterator<factorLastBands; pixelIterator++){
-          totPixVal = pointerToNew16BitArray[nFullBinnsPerRow*binningFactor+pixelIterator];
-        }
-        binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[nFullBinnsPerRow*binningFactor];
+        bubbleSort(pointerToNew16BitArray+rowOffset+lastPixelInRowOffset, factorLastBands);
+        //insertionSort(rawImageP, rowOffset+lastPixelInRowOffset, factorLastBands);
+        binnedImage[binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[lastPixelInRowOffset+(factorLastBands/2)];
       }
 
     }
+    // gettimeofday(&tv2, NULL);
+    // printf("Binning: %d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+    // gettimeofday(&tv1, NULL);
+    
+    sprintf(imageNumberS, "%d", imageNumber);
+    strcpy(fileName, "/home/root/rawCameraData/tmp/");
+    strcat(fileName, imageNumberS);
+    strcat(fileName, "Binned.raw");
+
+    FILE* pFile2 = fopen ( fileName , "wb" );
+    if (pFile2==NULL) {fputs ("File error\n",stderr); exit (1);}
+
+    fwrite (binnedImage, sizeof(uint16_t), sensorRows*nFullBinnsPerRow, pFile2);
+    fclose (pFile2);
+
     // usleep(9000);
     gettimeofday(&tv2, NULL);
-    // printf("%d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+    // printf("Storing %d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+
+    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
     // is_UnlockSeqBuf (hCam, 1, rawImageP);
     // exit(1);
 
   }
-
+  // printf("Tot time: %f\n", (double) (tv2.tv_usec - tv3.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+  printf("avg binning and storing time: %f\n", totTime/nSingleFrames);
 
   for(int imageMemory=1; imageMemory<=nRawImagesInMemory; imageMemory++){
     // is_FreeImageMem (hCam, memSingleImageSequence[imageMemory], imageMemory);
   }
 
-  hsiCube = new uint16_t*[cubeRows];
-  for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-    hsiCube[cubeRow] = new uint16_t[cubeColumns];//TODO pixeldepth
-  }
+  char fileName[64];
+  char imageNumberS[11];
+
+  strcpy(fileName, "cube.raw");
+
+  FILE * pFileCube = fopen ( fileName , "wb" );
+  if (pFileCube==NULL) {fputs ("File error\n",stderr); exit (1);}
+
+  uint16_t* cubeColumn = new uint16_t[cubeColumns];
+  uint16_t* binnedFrame = new uint16_t[cubeColumns];
+
+  gettimeofday(&tv1, NULL);
 
   ///Make cube
   if(cubeType==Bil){//BIL
     for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      strcpy(fileName, "/home/root/rawCameraData/tmp/");
+      sprintf(imageNumberS, "%d", cubeRow);
+      strcat(fileName, imageNumberS);
+      strcat(fileName, "Binned.raw");
+      // printf("Cubing file: %s\n", fileName);
+      FILE * pFileCubeRow = fopen ( fileName , "rb" );
+      if (pFileCubeRow==NULL) {fputs ("File error\n",stderr); exit (1);}
+      size_t result = fread (binnedFrame, 2, nFullBinnsPerRow*sensorRows, pFileCubeRow);
+      if (result != nFullBinnsPerRow*sensorRows) {fputs ("Reading error",stderr); exit (3);}
+      fclose (pFileCubeRow);
+
       for(int band=0; band<nFullBinnsPerRow; band++){
         for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
-          hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = binnedImages[cubeRow][nFullBinnsPerRow*(sensorRows-1)-nFullBinnsPerRow*pixelInCubeRow+band];
+          cubeColumn[band*sensorRows+pixelInCubeRow] = binnedFrame[nFullBinnsPerRow*(sensorRows-1)-nFullBinnsPerRow*pixelInCubeRow+band];
         }
       }
+      fwrite (cubeColumn, sizeof(uint16_t), sensorRows*nFullBinnsPerRow, pFileCube);
     }
   }
   else if(cubeType==Bip){//BIP
     for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      strcpy(fileName, "/home/root/rawCameraData/tmp/");
+      sprintf(imageNumberS, "%d", cubeRow);
+      strcat(fileName, imageNumberS);
+      strcat(fileName, "Binned.raw");
+      // printf("Cubing file: %s\n", fileName);
+      FILE * pFileCubeRow = fopen ( fileName , "rb" );
+      if (pFileCubeRow==NULL) {fputs ("File error\n",stderr); exit (1);}
+      size_t result = fread (binnedFrame, 2, nFullBinnsPerRow*sensorRows, pFileCubeRow);
+      if (result != nFullBinnsPerRow*sensorRows) {fputs ("Reading error",stderr); exit (3);}
+      fclose (pFileCubeRow);
+
       for(int pixel=0; pixel<sensorRows; pixel++){
-        for(int band=0; band<nBandsBinned; band++){
-          hsiCube[cubeRow][pixel*nBandsBinned+band] = binnedImages[cubeRow][nBandsBinned*(sensorRows-1)-nBandsBinned*pixel+band];
+        for(int band=0; band<nFullBinnsPerRow; band++){
+          cubeColumn[pixel*nFullBinnsPerRow+band] = binnedFrame[nFullBinnsPerRow*(sensorRows-1)-nFullBinnsPerRow*pixel+band];
         }
       }
+      fwrite (cubeColumn, sizeof(uint16_t), sensorRows*nFullBinnsPerRow, pFileCube);
     }
   }
   else{//BSQ
-    for(int band=0; band<nBandsBinned; band++){
-      for(int rowSpatial=0; rowSpatial<nSingleFrames; rowSpatial++){
+    for(int band=0; band<nFullBinnsPerRow; band++){
+      for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+        strcpy(fileName, "/home/root/rawCameraData/tmp/");
+        sprintf(imageNumberS, "%d", cubeRow);
+        strcat(fileName, imageNumberS);
+        strcat(fileName, "Binned.raw");
+        // printf("Cubing file: %s\n", fileName);
+        FILE * pFileCubeRow = fopen ( fileName , "rb" );
+        if (pFileCubeRow==NULL) {fputs ("File error\n",stderr); exit (1);}
+        size_t result = fread (binnedFrame, 2, nFullBinnsPerRow*sensorRows, pFileCubeRow);
+        if (result != nFullBinnsPerRow*sensorRows) {fputs ("Reading error",stderr); exit (3);}
+
         for(int pixelInCubeRow=0; pixelInCubeRow<cubeColumns; pixelInCubeRow++){
-          hsiCube[band*nSingleFrames+rowSpatial][pixelInCubeRow] = binnedImages[rowSpatial][nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
+          cubeColumn[pixelInCubeRow] = binnedFrame[nBandsBinned*(sensorRows-1)-nBandsBinned*pixelInCubeRow+band];
         }
+        fwrite (cubeColumn, sizeof(uint16_t), sensorRows*nFullBinnsPerRow, pFileCube);
+        fclose (pFileCube);
       }
     }
   }
-  writeCubeToFile();
+  gettimeofday(&tv2, NULL);
+  printf("Stored all %f\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
+  // writeCubeToFile();
 }
 
 void HSICamera::writeRawDataToFile(char** rawImages, int nRows, int nColumns){
@@ -516,4 +571,116 @@ void HSICamera::bubbleSort(uint16_t arr[], int n)
        for (j = 0; j < n-i-1; j++)
            if (arr[j] > arr[j+1])
               swap(&arr[j], &arr[j+1]);
+}
+
+
+void HSICamera::bitonicMerge12(uint16_t* arr){
+
+  // Load vectors
+  uint16x8_t vec1_16x8, vec2_16x8;
+  uint16x4_t vec1_16x4, vec2_16x4, vec3_16x4, vec4_16x4;
+  uint16_t zeroPadding[4] = {0, 0, 0, 0};
+
+  vec1_16x4 = vld1_u16(zeroPadding);
+  vec2_16x4 = vld1_u16(arr);
+  vec3_16x4 = vld1_u16(arr+4);
+  vec4_16x4 = vld1_u16(arr+8);
+
+  // Sorting across registers
+  uint16x4_t max_vec_sort = vmax_u16(vec4_16x4, vec3_16x4);
+  uint16x4_t min_vec_sort = vmin_u16(vec4_16x4, vec3_16x4);
+
+  vec3_16x4 = vmin_u16(max_vec_sort, vec2_16x4);
+  vec4_16x4 = vmax_u16(max_vec_sort, vec2_16x4);
+
+  vec2_16x4 = vmin_u16(vec3_16x4, min_vec_sort);
+  vec3_16x4 = vmax_u16(vec3_16x4, min_vec_sort);
+
+  // Transpose vectors
+  vec1_16x8 = vcombine_u16(vec1_16x4, vec2_16x4);
+  vec2_16x8 = vcombine_u16(vec3_16x4, vec4_16x4);
+
+  uint16x8x2_t interleavedVector = vzipq_u16(vec1_16x8, vec2_16x8);
+  interleavedVector = vzipq_u16(interleavedVector.val[0], interleavedVector.val[1]);
+
+  uint16x8_t reversed_vector = vrev64q_u16(interleavedVector.val[1]);
+
+  // L1
+  uint16x8_t max_vec = vmaxq_u16(reversed_vector, interleavedVector.val[0]);
+  uint16x8_t min_vec = vminq_u16(reversed_vector, interleavedVector.val[0]);
+
+  uint16x8x2_t shuffleTmp = vtrnq_u16(min_vec, max_vec);
+  uint16x8x2_t interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+
+  // Shuffle lines into right vectors
+  uint16x4_t line1 = vget_high_u16(interleavedTmp.val[0]);
+  uint16x4_t line3 = vget_low_u16(interleavedTmp.val[0]);
+  uint16x4_t line2 = vget_high_u16(interleavedTmp.val[1]);
+  uint16x4_t line4 = vget_low_u16(interleavedTmp.val[1]);
+  uint16x8_t  vec1_L2 = vcombine_u16(line1, line2);
+  uint16x8_t  vec2_L2 = vcombine_u16(line3, line4);
+
+  // L2
+  max_vec = vmaxq_u16(vec1_L2, vec2_L2);
+  min_vec = vminq_u16(vec1_L2, vec2_L2);
+
+  uint16x8x2_t vec1_L3 = vtrnq_u16(min_vec, max_vec);
+
+  // L3
+  max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+  min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+
+  uint16x8x2_t zippedResult = vzipq_u16(min_vec, max_vec);
+
+  // Bitonic merge 8x2
+  reversed_vector = vrev64q_u16(zippedResult.val[0]);
+  uint16x4_t reversed_vector_high = vget_high_u16(reversed_vector);
+  uint16x4_t reversed_vector_low = vget_low_u16(reversed_vector);
+  reversed_vector = vcombine_u16(reversed_vector_high, reversed_vector_low);
+
+  max_vec = vmaxq_u16(reversed_vector, zippedResult.val[1]);
+  min_vec = vminq_u16(reversed_vector, zippedResult.val[1]);
+
+  // Shuffle lines into right vectors
+  uint16x4_t max_vec_high = vget_high_u16(max_vec);
+  uint16x4_t max_vec_low = vget_low_u16(max_vec);
+  uint16x4_t min_vec_high = vget_high_u16(min_vec);
+  uint16x4_t min_vec_low = vget_low_u16(min_vec);
+  uint16x8_t shuffled_vec1 = vcombine_u16(min_vec_low, max_vec_low);
+  uint16x8_t shuffled_vec2 = vcombine_u16(min_vec_high, max_vec_high);
+
+  uint16x8_t input_bitonic4x2_max = vmaxq_u16(shuffled_vec1, shuffled_vec2);
+  uint16x8_t input_bitonic4x2_min = vminq_u16(shuffled_vec1, shuffled_vec2);
+
+
+  // Bitonic merge 4x2
+  // L1
+  max_vec = vmaxq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
+  min_vec = vminq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
+
+  shuffleTmp = vtrnq_u16(min_vec, max_vec);
+  interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+
+  // Shuffle lines into right vectors
+  line1 = vget_high_u16(interleavedTmp.val[0]);
+  line3 = vget_low_u16(interleavedTmp.val[0]);
+  line2 = vget_high_u16(interleavedTmp.val[1]);
+  line4 = vget_low_u16(interleavedTmp.val[1]);
+  vec1_L2 = vcombine_u16(line1, line2);
+  vec2_L2 = vcombine_u16(line3, line4);
+
+  // L2
+  max_vec = vmaxq_u16(vec1_L2, vec2_L2);
+  min_vec = vminq_u16(vec1_L2, vec2_L2);
+
+  vec1_L3 = vtrnq_u16(min_vec, max_vec);
+
+  // L3
+  max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+  min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+
+  zippedResult = vzipq_u16(min_vec, max_vec);
+  uint16x4_t lowestValues = vget_high_u16(zippedResult.val[0]);
+  vst1_u16(arr, lowestValues);
+  vst1q_u16(arr+4, zippedResult.val[1]);
 }
