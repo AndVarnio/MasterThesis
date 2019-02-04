@@ -6,7 +6,7 @@
 #include <sys/time.h>
 #include <arm_neon.h>
 // #include <opencv2/highgui.hpp>
-
+// 226x226
 enum cubeFormat { Bil, Bip, Bsq };
 enum cameraTriggerMode {Freerun, Swtrigger};
 
@@ -34,7 +34,7 @@ class HSICamera
 
       int nSingleFrames = 100;
       const int nRawImagesInMemory = 10;
-      double frameRate = 32.0;
+      double frameRate = 15.0;
 
       int bands;
       int nBandsBinned;
@@ -137,15 +137,15 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the color mode, error code: %d\n", errorCode);
   };
 
-  errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  };
+  // errorCode = is_SetGainBoost(hCam, IS_SET_GAINBOOST_ON);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetHardwareGain (hCam, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  // };
 
   switch(triggerMode)
   {
@@ -168,7 +168,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     for(int image=0; image<322; image++){
       binnedImages[image] = new uint16_t[nBandsBinned*sensorRows];//TODO pixeldepth
     }
-  
+
     errorCode = is_SetFrameRate(hCam, frameRate, &frameRate);
     if(errorCode!=IS_SUCCESS){
       printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
@@ -197,17 +197,17 @@ void HSICamera::runCubeCapture(){
 }
 
 void HSICamera::swTriggerCapture(){
-    // for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-    //   is_FreezeVideo(hCam, IS_WAIT);
-    //     //TODO Binning
-    //
-    //   for(int band=0; band<bands; band++){
-    //     for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
-    //       hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = memSingleImage[sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
-    //     }
-    //   }
-    //     // usleep(20000);
-    // }
+    for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
+      is_FreezeVideo(hCam, IS_WAIT);
+        //TODO Binning
+
+      for(int band=0; band<bands; band++){
+        for(int pixelInCubeRow=0; pixelInCubeRow<sensorRows; pixelInCubeRow++){
+          hsiCube[cubeRow][band*sensorRows+pixelInCubeRow] = memSingleImage[sensorColumns*(sensorRows-1)-sensorColumns*pixelInCubeRow+band];
+        }
+      }
+        // usleep(20000);
+    }
 }
 void HSICamera::freeRunCapture(){
   struct timeval  tv1, tv2, tv3, tv4;
@@ -218,32 +218,27 @@ void HSICamera::freeRunCapture(){
   int fileNumber = 0;
 
   int lastPixelInRowOffset = nFullBinnsPerRow*binningFactor;
-
   uint16_t* binnedImage = new uint16_t[nBandsBinned*sensorRows];
 
   for(int imageNumberBase=0; imageNumberBase<2254; imageNumberBase+=322){
-
   for(int imageNumberOffset=0; imageNumberOffset<322; imageNumberOffset++){
-    // printf("Wait for a image\n");
 
-    // gettimeofday(&tv3, NULL);
-// TODO Read next file XSingle.raw
-    char fileName[64];
+    int errorCode;
+    // printf("Starting image: %d\n", imageNumberBase+imageNumberOffset);
+    do{
+      errorCode = is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
 
-    char imageNumberS[11];
-    sprintf(imageNumberS, "%d", imageNumberBase+imageNumberOffset);
-
-    strcpy(fileName, imageNumberS);
-    strcat(fileName, "Single.raw");
-
-    FILE * pFile = fopen ( fileName , "rb" );
-    if (pFile==NULL) {fputs ("File error\n",stderr); exit (1);}
+      if(errorCode!=IS_SUCCESS){
+        is_UnlockSeqBuf (hCam, 1, rawImageP);
+        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+      }
+    }while(errorCode!=IS_SUCCESS);
 
     uint16_t pointerToNew16BitArray[sensorRows*sensorColumns];
 
-    size_t result = fread (pointerToNew16BitArray, 2, 1920*1080, pFile);
-    if (result != 1920*1080) {fputs ("Reading error",stderr); exit (3);}
-    fclose (pFile);
+    for(int i=0; i<sensorRows*sensorColumns; i++){
+      pointerToNew16BitArray[i] = uint16_t(rawImageP[i*2]) << 8 | rawImageP[i*2+1] ;
+    }
 
     gettimeofday(&tv1, NULL);
 
@@ -270,14 +265,10 @@ void HSICamera::freeRunCapture(){
       }
 
     }
-
+    is_UnlockSeqBuf (hCam, 1, rawImageP);
     gettimeofday(&tv2, NULL);
     totTimeBin += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
   }
-
-  // gettimeofday(&tv2, NULL);
-  // printf("Binning: %d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
-  // gettimeofday(&tv1, NULL);
 
   gettimeofday(&tv1, NULL);
   char fileName[64];
@@ -297,11 +288,7 @@ void HSICamera::freeRunCapture(){
 
   // usleep(9000);
   gettimeofday(&tv2, NULL);
-  // printf("Storing %d %f\n", imageNumber, (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
-
   totTimeStore += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-  // is_UnlockSeqBuf (hCam, 1, rawImageP);
-  // exit(1);
   fileNumber += 1;
 
 }

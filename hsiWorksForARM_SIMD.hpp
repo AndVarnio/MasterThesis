@@ -29,7 +29,7 @@ class HSICamera
 
       const int nSingleFrames = 1735;
       const int nRawImagesInMemory = 120;
-      double frameRate = 32.0;
+      double frameRate = 20.0;
 
       int bands;
       int nBandsBinned;
@@ -169,7 +169,19 @@ void HSICamera::runCubeCapture(){
 
   int imageSequenceID = 1; // = new int[nSingleFrames];
   for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
-    is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+
+    int errorCode;
+    printf("Starting image: %d\n", imageNumber);
+    do{
+      errorCode = is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+
+      if(errorCode!=IS_SUCCESS){
+        is_UnlockSeqBuf (hCam, 1, rawImageP);
+        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+      }
+    }while(errorCode!=IS_SUCCESS);
+
+//    is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
     // printf("Image nr: %i\n", imageNumber);
     /////Binning
     gettimeofday(&tv1, NULL);

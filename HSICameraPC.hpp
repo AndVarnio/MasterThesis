@@ -33,7 +33,7 @@ class HSICamera
 
       int nSingleFrames = 100;
       const int nRawImagesInMemory = 1000;
-      double frameRate = 32.0;
+      double frameRate = 20.0;
 
       int bands;
       int nBandsBinned;
@@ -216,7 +216,7 @@ void HSICamera::freeRunCapture(){
     // printf("Wait for a image\n");
     gettimeofday(&tv1, NULL);
     int errorCode;
-
+    printf("Image: %d\n", imageNumber);
     do{
       errorCode = is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
 
