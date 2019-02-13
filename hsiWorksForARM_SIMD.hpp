@@ -160,7 +160,10 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
 void HSICamera::runCubeCapture(){
   printf("Starting image capture\n");
   /////////////////Freerun mode //////////////
-
+  double dblFPS;
+  is_GetFramesPerSecond (hCam, &dblFPS);
+  printf("Actual framerate: %f\n", dblFPS);
+  
   char* rawImageP;
   clock_t time_spent = 0;
   int imnr = 1;
