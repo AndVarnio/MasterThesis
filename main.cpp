@@ -1,7 +1,9 @@
 // #include "hsiWorksForARM_SIMD.hpp"
 // #include "HSICameraARMGigE8Bit.hpp"
 // #include "HSICameraARMGigE.hpp"
-#include "HSICameraGigEHWTrigger.hpp"
+// #include "HSICameraGigEHWTrigger.hpp"
+#include "HSICameraARMSubsampling.hpp"
+// #include "testMock16BitPC.hpp"
 #include <stdlib.h>
 // g++ test.cpp -lueye_api
 // g++ main.cpp -lueye_api `pkg-config --cflags --libs opencv`
@@ -15,7 +17,7 @@ int main(int argc, char** argv){
   // TODO Different pixelclock USB 2.0
   // camera.initialize(118, 36, 30, 1216, 1936, 2254, Freerun, Bil); //GOAL parmeters
   // camera.initialize(50, 6, 5, 1080, 1920, 2254, Freerun, Bil);
-  camera.initialize(118, 36, 5, 1216, 1936, 2254, 4, Freerun, Bil);
+  camera.initialize(118, 36, 5, 1080, 1920, 1000, 23, Freerun, Bsq);
   // camera.initialize(118, 6, 5, 1080, 1920, 2254, Freerun, Bil);
   // camera.initialize(118, 6, 5, 1080, 1920, 8); //ui306
   camera.runCubeCapture();

@@ -6,13 +6,18 @@
 #include <iostream>
 // g++ readBIL.cpp -o readBILCube `pkg-config --cflags --libs opencv`
 int columns = 1080;
-int bands = 96;
-int rows = 1735;
+int bands = 160;
+int rows = 2254;
 
-char* buffer;
-char** waveLengths;
-char** rawImages;
-char **hsiCube;
+int nSingleFrames = rows;
+int nBandsBinned = bands;
+int sensorRows = columns;
+int cubeColumns = columns;
+
+uint16_t* buffer;
+uint16_t** waveLengths;
+uint16_t** rawImages;
+uint16_t **hsiCube;
 
 int main(int argc, char* argv[])
 {
@@ -20,30 +25,22 @@ int main(int argc, char* argv[])
     puts("Usage: a.out [PATH TO RAW]");
     return -1;
   }
-    // buffer = malloc(columns*bands*rows);
-    buffer = new char[columns*bands*rows];
-    printf("NJINI\n");
-    waveLengths = new char*[bands];
-    for(int band=0; band<bands; band++){
-      waveLengths[band] = new char[rows*columns];
-    }
-    std::ifstream input( argv[1], std::ios::in | std::ios::binary );
-    if (!input)
-   {
-       std::cout << "Failed to open file\n";
-       exit(1);
-   }
 
-    input.seekg (0, input.end);
-    int lengthFile = input.tellg();
-    input.seekg (0, input.beg);
+      const int SIZEINPUTFILE = columns*bands*rows;
+      buffer = new uint16_t[SIZEINPUTFILE];
 
-    input.read(buffer, columns*rows*bands);
+      waveLengths = new uint16_t*[bands];
+      for(int band=0; band<bands; band++){
+        waveLengths[band] = new uint16_t[rows*columns];
+      }
 
-    if (input)
-      printf("%i Characters read successfully\n", lengthFile);
-    else
-      printf("Error, read only %i out of %li characters\n", lengthFile, input.gcount());
+      FILE * pFile = fopen ( argv[1] , "rb" );
+      if (pFile==NULL) {fputs ("File error\n",stderr); exit (1);}
+
+      size_t result = fread (buffer, 2, SIZEINPUTFILE, pFile);
+      if (result != SIZEINPUTFILE) {fputs ("Reading error\n",stderr);
+      printf("result=%ld SIZEINPUTFILE=%d\n",result, SIZEINPUTFILE);
+      exit (3);}
 
 
     #pragma omp parallel for num_threads(4)
@@ -55,9 +52,9 @@ int main(int argc, char* argv[])
       }
     }
 
-    rawImages = new char*[rows];
+    rawImages = new uint16_t*[rows];
     for(int x=0; x<rows; x++){
-      rawImages[x] = new char[bands*columns];
+      rawImages[x] = new uint16_t[bands*columns];
     }
 
     int rawImageLength = bands*columns;
@@ -70,16 +67,11 @@ int main(int argc, char* argv[])
 
     }
 
-    int nSingleFrames = 1735;
-    int nBandsBinned = bands;
-    int sensorRows = 1080;
-    int cubeColumns = sensorRows;
-
     int cubeRows = nSingleFrames*nBandsBinned;
 
-    hsiCube = new char*[cubeRows];
+    hsiCube = new uint16_t*[cubeRows];
     for(int cubeRow=0; cubeRow<cubeRows; cubeRow++){
-      hsiCube[cubeRow] = new char[cubeColumns];//TODO pixeldepth
+      hsiCube[cubeRow] = new uint16_t[cubeColumns];//TODO pixeldepth
     }
 
 
@@ -100,7 +92,7 @@ int main(int argc, char* argv[])
       return 0;
     }
     for(int i=0; i<cubeRows; i++){
-        fwrite (hsiCube[i], sizeof(char), cubeColumns, fp);//TODO bitDepth
+        fwrite (hsiCube[i], sizeof(uint16_t), cubeColumns, fp);//TODO bitDepth
       }
       fclose (fp);
 
