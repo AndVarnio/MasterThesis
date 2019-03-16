@@ -80,8 +80,8 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
 
   printf("Initializing camera parameters\n");
   sensorRows = rows;
-  sensorColumns = columns/2;
-  bands = columns/2;
+  sensorColumns = columns/4;
+  bands = columns/4;
   nBandsBinned = bands;
   UINT nPixelClock = pixelClockMHz;
   nSingleFrames = frames;
@@ -150,7 +150,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the color mode, error code: %d\n", errorCode);
   };
 
-  errorCode = is_SetSubSampling (hCam, IS_SUBSAMPLING_2X_HORIZONTAL);
+  errorCode = is_SetSubSampling (hCam, IS_SUBSAMPLING_4X_HORIZONTAL);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with the subsampling, error code: %d\n", errorCode);
   };
@@ -261,37 +261,65 @@ void HSICamera::freeRunCapture(){
       }
     }while(errorCode!=IS_SUCCESS);
 
-    uint16_t pointerToNew16BitArray[sensorRows*sensorColumns];
+    // uint16_t pointerToNew16BitArray[sensorRows*sensorColumns];
+    //
+    // for(int i=0; i<sensorRows*sensorColumns; i++){
+    //   pointerToNew16BitArray[i] = uint16_t(rawImageP[i*2]) << 8 | rawImageP[i*2+1] ;
+    // }
 
-    for(int i=0; i<sensorRows*sensorColumns; i++){
-      pointerToNew16BitArray[i] = uint16_t(rawImageP[i*2]) << 8 | rawImageP[i*2+1] ;
-    }
+    // gettimeofday(&tv1, NULL);
 
-    gettimeofday(&tv1, NULL);
-
-    #pragma omp parallel for num_threads(2)
-    for(int row=0; row<sensorRows; row++){
-      int rowOffset = row*sensorColumns;
-      int binnedIdxOffset = row*nBandsBinned;
-
-      int binOffset = 0;
-
-      for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
-
-        int rowAndBinOffset = rowOffset+binOffset;
-        // printf("rowAndBinOffset %d\n", rowAndBinOffset);
-
-        bitonicMerge12(pointerToNew16BitArray+rowAndBinOffset);
-        binnedImages[imageNumber][binnedIdxOffset+binnIterator] = pointerToNew16BitArray[rowAndBinOffset+6];
-        binOffset += binningFactor;
-      }
-      if(factorLastBands>0){
-        bubbleSort(pointerToNew16BitArray+rowOffset+lastPixelInRowOffset, factorLastBands);
-        //insertionSort(rawImageP, rowOffset+lastPixelInRowOffset, factorLastBands);
-        binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[lastPixelInRowOffset+(factorLastBands/2)];
-      }
-
-    }
+    // #pragma omp parallel for num_threads(2)
+    // for(int row=0; row<sensorRows; row++){
+    //   int rowOffset = row*sensorColumns;
+    //   int binnedIdxOffset = row*nBandsBinned;
+    //
+    //   int binOffset = 0;
+    //
+    //   for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
+    //   // ∕∕∕∕∕∕∕∕∕∕∕∕MEDIAN
+    //   //   int rowAndBinOffset = rowOffset+binOffset;
+    //   //   // printf("rowAndBinOffset %d\n", rowAndBinOffset);
+    //   //
+    //   //   bitonicMerge12(pointerToNew16BitArray+rowAndBinOffset);
+    //   //   binnedImages[imageNumber][binnedIdxOffset+binnIterator] = pointerToNew16BitArray[rowAndBinOffset+6];
+    //   //   binOffset += binningFactor;
+    //   ////////////////////////////MEDIAN
+    //
+    //   // ////////////////////////////////MEAN
+    //   //       int totPixVal = 0;
+    //   //
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+0];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+1];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+2];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+3];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+4];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+5];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+6];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+7];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+8];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+9];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+10];
+    //   //       totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+11];
+    //   //
+    //   //       binOffset += binningFactor;
+    //   //
+    //   //       binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (uint16_t)(totPixVal/binningFactor);
+    //   // ////////////////////////////////MEAN
+    //
+    //
+    //   }
+    //
+    //
+    //
+    //
+    //   // if(factorLastBands>0){
+    //   //   bubbleSort(pointerToNew16BitArray+rowOffset+lastPixelInRowOffset, factorLastBands);
+    //   //   //insertionSort(rawImageP, rowOffset+lastPixelInRowOffset, factorLastBands);
+    //   //   binnedImages[imageNumber][binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[lastPixelInRowOffset+(factorLastBands/2)];
+    //   // }
+    //
+    // }
     is_UnlockSeqBuf (hCam, 1, rawImageP);
     gettimeofday(&tv2, NULL);
     totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);

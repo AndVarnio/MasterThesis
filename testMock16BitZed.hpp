@@ -168,7 +168,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     for(int image=0; image<322; image++){
       binnedImages[image] = new uint16_t[nBandsBinned*sensorRows];//TODO pixeldepth
     }
-  
+
     errorCode = is_SetFrameRate(hCam, frameRate, &frameRate);
     if(errorCode!=IS_SUCCESS){
       printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
@@ -256,18 +256,43 @@ void HSICamera::freeRunCapture(){
 
       for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
 
-        int rowAndBinOffset = rowOffset+binOffset;
-        // printf("rowAndBinOffset %d\n", rowAndBinOffset);
+          ////////////////////////////////MEAN
+                int totPixVal = 0;
 
-        bitonicMerge12(pointerToNew16BitArray+rowAndBinOffset);
-        binnedImages[imageNumberOffset][binnedIdxOffset+binnIterator] = pointerToNew16BitArray[rowAndBinOffset+6];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+0];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+1];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+2];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+3];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+4];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+5];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+6];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+7];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+8];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+9];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+10];
+                totPixVal += (int)pointerToNew16BitArray[rowOffset+binOffset+11];
+
+                binOffset += binningFactor;
+
+                binnedImages[imageNumber][binnedIdxOffset+binnIterator] = (uint16_t)(totPixVal/binningFactor);
+          ////////////////////////////////MEAN
+
+//////////////MEDIAN
+        // int rowAndBinOffset = rowOffset+binOffset;
+        // // printf("rowAndBinOffset %d\n", rowAndBinOffset);
+        //
+        // bitonicMerge12(pointerToNew16BitArray+rowAndBinOffset);
+        // binnedImages[imageNumberOffset][binnedIdxOffset+binnIterator] = pointerToNew16BitArray[rowAndBinOffset+6];
+        //////////////MEDIAN
+
+
         binOffset += binningFactor;
       }
-      if(factorLastBands>0){
-        bubbleSort(pointerToNew16BitArray+rowOffset+lastPixelInRowOffset, factorLastBands);
-        //insertionSort(rawImageP, rowOffset+lastPixelInRowOffset, factorLastBands);
-        binnedImages[imageNumberOffset][binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[lastPixelInRowOffset+(factorLastBands/2)];
-      }
+      // if(factorLastBands>0){
+      //   bubbleSort(pointerToNew16BitArray+rowOffset+lastPixelInRowOffset, factorLastBands);
+      //   //insertionSort(rawImageP, rowOffset+lastPixelInRowOffset, factorLastBands);
+      //   binnedImages[imageNumberOffset][binnedIdxOffset+nFullBinnsPerRow] = pointerToNew16BitArray[lastPixelInRowOffset+(factorLastBands/2)];
+      // }
 
     }
 

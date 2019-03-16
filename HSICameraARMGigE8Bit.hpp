@@ -15,7 +15,7 @@ class HSICamera
 
     public:
       HSICamera();
-      void initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, cameraTriggerMode cameraMode, cubeFormat cube);
+      void initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, double fps, cameraTriggerMode cameraMode, cubeFormat cube);
       void runCubeCapture();
       void captureSingleImage();
 
@@ -76,7 +76,7 @@ HSICamera::HSICamera(){
   }
 }
 
-void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, cameraTriggerMode cameraMode, cubeFormat cube){
+void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, double fps, cameraTriggerMode cameraMode, cubeFormat cube){
 
   printf("Initializing camera parameters\n");
   sensorRows = rows;
@@ -87,6 +87,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   nSingleFrames = frames;
   triggerMode = cameraMode;
   cubeType = cube;
+  frameRate = fps;
 
   ////////////////////Binning////////////////////
   factorLastBands = bands%binningFactor;

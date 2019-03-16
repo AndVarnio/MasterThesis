@@ -8,8 +8,11 @@
 #ifndef SRC_CUBEDMA_H_
 #define SRC_CUBEDMA_H_
 
-#include <xil_types.h>
-
+// #include <xil_types.h>
+// #include <linux/types.h>
+// #include <stdlib.h>
+// #include<stdio.h>
+#include<stdint.h>
 typedef enum {
 	SUCCESS,
 	ERR_TIMEOUT,
@@ -29,32 +32,32 @@ typedef enum {
 } cubedma_interrupt_t;
 
 typedef struct {
-	u8 error:1;
-	u8 complete:1;
+	uint8_t error:1;
+	uint8_t complete:1;
 } cubedma_init_enable_irq_t;
 
 typedef struct {
 	struct{
-		u32 source;
-		u32 destination;
+		uint32_t source;
+		uint32_t destination;
 	} address;
 	struct {
-		u8 n_planes;
-		u8 c_offset;
-		u8 planewise:1;
+		uint8_t n_planes;
+		uint8_t c_offset;
+		uint8_t planewise:1;
 		struct {
-			u8 enabled:1;
+			uint8_t enabled:1;
 			struct {
-				u8 width:4;
-				u8 height:4;
-				u32 size_last_row:20;
+				uint8_t width:4;
+				uint8_t height:4;
+				uint32_t size_last_row:20;
 			} dims;
 		} blocks;
 		struct {
-			u16 width:12;
-			u16 height:12;
-			u16 depth:12;
-			u32 size_row:20;
+			uint16_t width:12;
+			uint16_t height:12;
+			uint16_t depth:12;
+			uint32_t size_row:20;
 		} dims;
 	} cube;
 	struct {
@@ -63,9 +66,10 @@ typedef struct {
 	} interrupt_enable;
 } cubedma_init_t;
 
+static void dcache_clean(void);
 cubedma_error_t cubedma_Init(cubedma_init_t param);
 cubedma_error_t cubedma_StartTransfer(transfer_t transfer);
 cubedma_interrupt_t cubedma_ReadInterrupts(transfer_t transfer);
-u8 cubedma_TransferDone(transfer_t transfer);
-
+bool cubedma_TransferDone(transfer_t transfer);
+bool dbg_cmp_mem();
 #endif /* SRC_CUBEDMA_H_ */

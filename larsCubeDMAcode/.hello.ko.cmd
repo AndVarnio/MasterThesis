@@ -1,0 +1,1 @@
+cmd_/home/andreas/MasterThesis/larsCubeDMAcode/hello.ko := /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/andreas/MasterThesis/larsCubeDMAcode/hello.ko /home/andreas/MasterThesis/larsCubeDMAcode/hello.o /home/andreas/MasterThesis/larsCubeDMAcode/hello.mod.o ;  true
