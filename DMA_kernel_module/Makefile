@@ -1,5 +1,5 @@
 PWD := $(shell pwd)
-obj-m += helloo.o
+obj-m += dma_proxy.o
 
 #INC=-I /home/andreas/MasterThesis/larsCubeDMAcode/linux-4.9/tools/testing/radix-tree
 

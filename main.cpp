@@ -18,7 +18,7 @@ int main(int argc, char** argv){
   // TODO Different pixelclock USB 2.0
   // camera.initialize(118, 36, 30, 1216, 1936, 2254, Freerun, Bil); //GOAL parmeters
   // camera.initialize(50, 6, 5, 1080, 1920, 2254, Freerun, Bil);
-  camera.initialize(232, 27, 5, 768, 1024, 2254, 40, Freerun, Bil);
+  camera.initialize(118, 36, 6, 1216, 1936, 800, 15, Freerun, Bil);
   // camera.initialize(118, 6, 5, 1080, 1920, 2254, Freerun, Bil);
   // camera.initialize(118, 6, 5, 1080, 1920, 8); //ui306
   camera.runCubeCapture();
