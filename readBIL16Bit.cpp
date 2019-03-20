@@ -6,9 +6,9 @@
 #include <omp.h>
 #include <iostream>
 // g++ readBIL.cpp -o readBILCube `pkg-config --cflags --libs opencv`
-int columns = 1080;
-int bands = 160;
-int rows = 2254;
+int columns = 1024;
+int bands = 85;
+int rows = 1500;
 
 uint16_t* buffer;
 uint16_t** waveLengths;

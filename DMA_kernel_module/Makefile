@@ -1,9 +1,6 @@
 PWD := $(shell pwd)
-obj-m += dma_proxy.o
-
-#INC=-I /home/andreas/MasterThesis/larsCubeDMAcode/linux-4.9/tools/testing/radix-tree
-
-#INC=-I /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/arm-linux-gnueabihf/libc/usr/include
+obj-m += hello_world_kernel_module.o
+#make KERNEL=/home/andreas/linuxKernel-4.9-Arm CROSS=/home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
 
 all:
 	make ARCH=arm CROSS_COMPILE=$(CROSS) -C $(KERNEL) SUBDIRS=$(PWD) modules

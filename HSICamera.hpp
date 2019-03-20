@@ -49,7 +49,7 @@ class HSICamera
       int g_bands_binned_per_row_count;
       int g_full_binns_per_row_count = 0;
       const int BINNINGFACTOR = 6;
-      const binningMode binning_method = simdMedian;
+      const binningMode binning_method = normalMean;
       bool even_bin_count;
 
       //Debug variable
@@ -531,12 +531,12 @@ void HSICamera::captureMeanBinning(){
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+3];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+4];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+5];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
-        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
+        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
 
         p_binned_frames[image_number][binned_frames_offset+bin_number] = (uint16_t)(tot_pixel_val/BINNINGFACTOR);
 
