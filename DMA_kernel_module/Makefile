@@ -1,5 +1,5 @@
 PWD := $(shell pwd)
-obj-m += hello_world_kernel_module.o
+obj-m += char_device.o
 #make KERNEL=/home/andreas/linuxKernel-4.9-Arm CROSS=/home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
 
 all:

@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <asm/uaccess.h>
 #include "hello_world_kernel_module.h"
 
 
@@ -87,7 +88,38 @@ static long ioctl(struct file *file, unsigned int unused , unsigned long arg)
  */
 static int mmap(struct file *file_p, struct vm_area_struct *vma)
 {
-	return 0;
+
+printk(KERN_INFO "Remapping\n");
+	/* The virtual address to map into is good, but the page frame will not be good since
+	 * user space passes a physical address of 0, so get the physical address of the buffer
+	 * that was allocated and convert to a page frame number.
+	 */
+
+		remap_pfn_range(vma, vma->vm_start,
+							virt_to_phys((void *)pchannel_p.interface_p)>>PAGE_SHIFT,
+							vma->vm_end - vma->vm_start, vma->vm_page_prot);
+
+
+}
+
+// static ssize_t dev_read(struct file *filep, struct dma_proxy_channel_interface *buffer, size_t len, loff_t *offset){
+static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
+	// struct dma_proxy_channel_interface message = *pchannel_p.interface_p;
+  //  int error_count = 0;
+	//  printk(KERN_INFO "Copy to user\n");
+  //  // copy_to_user has the format ( * to, *from, size) and returns 0 on success
+  //  error_count = copy_to_user(buffer, &message, pchannel_p.interface_p->length);
+	//
+  //  if (error_count==0){            // if true then have success
+  //     printk(KERN_INFO "EBBChar: Sent %d characters to the user\n", pchannel_p.interface_p->length);
+  //     return 0;  // clear the position to the start and return 0
+  //  }
+  //  else {
+  //     printk(KERN_INFO "EBBChar: Failed to send %d characters to the user\n", pchannel_p.interface_p->length);
+  //     return -EFAULT;              // Failed -- return a bad address message (i.e. -14)
+  //  }
+
+	 return 0;
 }
 
 static struct file_operations dm_fops = {
@@ -95,6 +127,7 @@ static struct file_operations dm_fops = {
 	.open     = local_open,
 	.release  = release,
 	.unlocked_ioctl = ioctl,
+	.read = dev_read,
 	.mmap	= mmap
 };
 
@@ -109,7 +142,7 @@ static int __init init_kernel_module(void) {
   	/* Allocate a character device from the kernel for this
   	 * driver
   	 */
-  	rc = alloc_chrdev_region((dev_t*)pchannel_p.dev_node, 0, 1, "dma_proxy");
+  	rc = alloc_chrdev_region(&pchannel_p.dev_node, 0, 1, "dma_proxy");
 
   	if (rc) {
   		dev_err(pchannel_p.dma_device_p, "unable to get a char device number\n");
@@ -119,47 +152,47 @@ static int __init init_kernel_module(void) {
     /* Initialize the ter device data structure before
   	 * registering the character device with the kernel
   	 */
-  	cdev_init((struct cdev*)pchannel_p.cdev, &dm_fops);
+  	cdev_init(&pchannel_p.cdev, &dm_fops);
   	pchannel_p.cdev.owner = THIS_MODULE;
-  	rc = cdev_add((struct cdev*)pchannel_p.cdev, pchannel_p.dev_node, 1);
+  	rc = cdev_add(&pchannel_p.cdev, pchannel_p.dev_node, 1);
 
   	if (rc) {
   		dev_err((struct device*)pchannel_p.dma_device_p, "unable to add char device\n");
   		goto init_error1;
   	}
 
-   //  // Register the device class
-   // local_class_p = class_create(THIS_MODULE, CLASS_NAME);
-   // if (IS_ERR(local_class_p)){                // Check for error and clean up if there is
-   //    // unregister_chrdev(majorNumber, DEVICE_NAME);
-   //    printk(KERN_ALERT "Failed to register device class\n");
-   //    return PTR_ERR(local_class_p);          // Correct way to return an error on a pointer
-   // }
-   // printk(KERN_INFO "EBBChar: device class registered correctly\n");
-   //
-   //  // Register the device driver
-   // pchannel_p->dma_device_p = device_create(local_class_p, NULL, pchannel_p->dev_node, NULL, DEVICE_NAME);
-   // if (IS_ERR(pchannel_p->dma_device_p)){               // Clean up if there is an error
-   //    class_destroy(local_class_p);           // Repeated code but the alternative is goto statements
-   //    unregister_chrdev(pchannel_p->dev_node, DEVICE_NAME);
-   //    printk(KERN_ALERT "Failed to create the device\n");
-   //    return PTR_ERR(pchannel_p->dma_device_p);
-   // }
-   //
-   //
-   // pchannel_p->proxy_device_p = device_create(local_class_p, NULL,
-   //                        pchannel_p->dev_node, NULL, device_name);
-   //
-   // if (IS_ERR(pchannel_p->proxy_device_p)) {
-   //   dev_err(pchannel_p->dma_device_p, "unable to create the device\n");
+    // Register the device class
+   local_class_p = class_create(THIS_MODULE, CLASS_NAME);
+   if (IS_ERR(local_class_p)){                // Check for error and clean up if there is
+      // unregister_chrdev(majorNumber, DEVICE_NAME);
+      printk(KERN_ALERT "Failed to register device class\n");
+      return PTR_ERR(local_class_p);          // Correct way to return an error on a pointer
+   }
+   printk(KERN_INFO "EBBChar: device class registered correctly\n");
+
+    // Register the device driver
+   pchannel_p.dma_device_p = device_create(local_class_p, NULL, pchannel_p.dev_node, NULL, DEVICE_NAME);
+   if (IS_ERR(pchannel_p.dma_device_p)){               // Clean up if there is an error
+      class_destroy(local_class_p);           // Repeated code but the alternative is goto statements
+      unregister_chrdev(pchannel_p.dev_node, DEVICE_NAME);
+      printk(KERN_ALERT "Failed to create the device\n");
+      return PTR_ERR(pchannel_p.dma_device_p);
+   }
+
+
+   // pchannel_p.proxy_device_p = device_create(local_class_p, NULL,
+   //                        pchannel_p.dev_node, NULL, device_name);
+	 //
+   // if (IS_ERR(pchannel_p.proxy_device_p)) {
+   //   dev_err(pchannel_p.dma_device_p, "unable to create the device\n");
    //   goto init_error3;
    // }
 
-   // pchannel_p->interface_p = (struct dma_proxy_channel_interface *)
+   // pchannel_p.interface_p = (struct dma_proxy_channel_interface *)
    //   kzalloc(sizeof(struct dma_proxy_channel_interface),
    //       GFP_KERNEL);
    // printk(KERN_INFO "Allocating cached memory at 0x%08X\n",
-   //      (unsigned int)pchannel_p->interface_p);
+   //      (unsigned int)pchannel_p.interface_p);
 
     return 0;
 

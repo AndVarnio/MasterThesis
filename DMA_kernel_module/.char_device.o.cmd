@@ -1,8 +1,8 @@
-cmd_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o := /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc -Wp,-MD,/home/andreas/MasterThesis/DMA_kernel_module/.hello_world_kernel_module.o.d  -nostdinc -isystem /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/../lib/gcc/arm-linux-gnueabihf/7.3.1/include -I./arch/arm/include -I./arch/arm/include/generated/uapi -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/kconfig.h -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -fno-dwarf2-cfi-asm -fno-ipa-sra -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -fno-delete-null-pointer-checks -Wno-frame-address -Os -Wno-maybe-uninitialized --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -Wno-unused-const-variable -fomit-frame-pointer -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -Werror=incompatible-pointer-types -DCC_HAVE_ASM_GOTO  -DMODULE  -DKBUILD_BASENAME='"hello_world_kernel_module"'  -DKBUILD_MODNAME='"hello_world_kernel_module"' -c -o /home/andreas/MasterThesis/DMA_kernel_module/.tmp_hello_world_kernel_module.o /home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.c
+cmd_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o := /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc -Wp,-MD,/home/andreas/MasterThesis/DMA_kernel_module/.char_device.o.d  -nostdinc -isystem /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/../lib/gcc/arm-linux-gnueabihf/7.3.1/include -I./arch/arm/include -I./arch/arm/include/generated/uapi -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/kconfig.h -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -fno-dwarf2-cfi-asm -fno-ipa-sra -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -fno-delete-null-pointer-checks -Wno-frame-address -Os -Wno-maybe-uninitialized --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -Wno-unused-const-variable -fomit-frame-pointer -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -Werror=incompatible-pointer-types -DCC_HAVE_ASM_GOTO  -DMODULE  -DKBUILD_BASENAME='"char_device"'  -DKBUILD_MODNAME='"char_device"' -c -o /home/andreas/MasterThesis/DMA_kernel_module/.tmp_char_device.o /home/andreas/MasterThesis/DMA_kernel_module/char_device.c
 
-source_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o := /home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.c
+source_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o := /home/andreas/MasterThesis/DMA_kernel_module/char_device.c
 
-deps_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o := \
+deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o := \
   include/linux/module.h \
     $(wildcard include/config/modules.h) \
     $(wildcard include/config/sysfs.h) \
@@ -823,7 +823,8 @@ deps_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o :=
     $(wildcard include/config/io/36.h) \
     $(wildcard include/config/cpu/cp15/mmu.h) \
   /home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.h \
+  include/linux/uaccess.h \
 
-/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o: $(deps_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o)
+/home/andreas/MasterThesis/DMA_kernel_module/char_device.o: $(deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o)
 
-$(deps_/home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.o):
+$(deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o):
