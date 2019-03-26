@@ -20,9 +20,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x1bfd809d, __VMLINUX_SYMBOL_STR(module_layout) },
 	{ 0xd616908a, __VMLINUX_SYMBOL_STR(class_unregister) },
 	{ 0x68ebbd2a, __VMLINUX_SYMBOL_STR(device_destroy) },
-	{ 0xb960247c, __VMLINUX_SYMBOL_STR(dev_err) },
-	{ 0xf92e10c0, __VMLINUX_SYMBOL_STR(dmam_alloc_coherent) },
-	{ 0xc158634, __VMLINUX_SYMBOL_STR(dma_supported) },
+	{ 0x3abb26b0, __VMLINUX_SYMBOL_STR(ioremap_wc) },
 	{ 0x80b1cd59, __VMLINUX_SYMBOL_STR(class_destroy) },
 	{ 0x3f32f282, __VMLINUX_SYMBOL_STR(device_create) },
 	{ 0x6bc3fbc0, __VMLINUX_SYMBOL_STR(__unregister_chrdev) },
@@ -42,4 +40,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "43D75BD4C3EDC559520F17B");
+MODULE_INFO(srcversion, "6CFF8F3235A933A835EF01B");

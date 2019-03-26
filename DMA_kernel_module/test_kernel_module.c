@@ -14,6 +14,10 @@ struct dma_proxy_channel_interface *mem_mapped_from_kernel;
 static char receive[TEST_SIZE];
 
 int main(){
+
+
+
+  ////////////Map driver/////////////////
  int fd;
 
 fd = open("/dev/ebbchar", O_RDWR|O_SYNC);
@@ -30,6 +34,8 @@ if (fd < 0) {
   perror("MM2S_status_register");
   exit(-1);
   }
+//////////////////////////////////////////////
+
 
   mem_mapped_from_kernel->length = TEST_SIZE;
 

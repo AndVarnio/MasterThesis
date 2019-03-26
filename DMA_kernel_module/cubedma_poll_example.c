@@ -34,6 +34,18 @@
 #include <stdlib.h>
 #include <arm_neon.h>
 
+#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include<errno.h>
+
+
 // #include <cachectl.h>
 // #include <asm/outercache.h>
 
@@ -63,14 +75,17 @@ int main()
     return 0;
 }
 
-#define COMPONENTS 0xFF//1920*1080*60;
+#define COMPONENTS 94371840//1920*1080*60;
 #define TIMEOUT 0xFFFFF
 
 // volatile uint32_t source[COMPONENTS] __attribute__ ((aligned (32)));
 // volatile uint32_t destin[COMPONENTS] __attribute__ ((aligned (32)));
 
-volatile uint8_t source[COMPONENTS] __attribute__ ((aligned (32)));
-volatile uint8_t destin[COMPONENTS] __attribute__ ((aligned (32)));
+// volatile uint8_t source[COMPONENTS] __attribute__ ((aligned (32)));
+// volatile uint8_t destin[COMPONENTS] __attribute__ ((aligned (32)));
+
+uint8_t* source;
+uint8_t* destin;
 
 // void dbg_print(uint32_t addr, uint32_t n){
 // 	for (uint32_t i = 0; i < n; i++) {
@@ -80,13 +95,39 @@ volatile uint8_t destin[COMPONENTS] __attribute__ ((aligned (32)));
 // }
 
 test_result_t cubedma_RunTests(){
+  ///////////Map transmit buffer
+  int fd;
+
+  if ((fd = open("/dev/mem", O_RDWR|O_SYNC)) < 0)
+  printf("Opened file\n");
+
+  if (fd < 0) {
+  perror("/dev/mem");
+  exit(-1);
+  }
+
+  printf("Pagesize: %d\n", getpagesize());
+
+  if ((source = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x09000000)))
+   == MAP_FAILED) {
+   perror("MM2S_status_register");
+   exit(-1);
+   }
+   ///////////////Map recieve buff
+
+   if ((destin = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x0c000000)))
+    == MAP_FAILED) {
+    perror("gister");
+    exit(-1);
+    }
+
 	printf("Transferring %u components from 0x%08x to 0x%08x\n\r",
 			(uint32_t)COMPONENTS, (uint32_t)&source, (uint32_t)&destin);
 
 	cubedma_init_t cubedma_parameters = {
 		.address = {
-			.source      = (uint32_t)(source),
-			.destination = (uint32_t)(destin)
+			.source      = (uint32_t)(0x09000000),
+			.destination = (uint32_t)(0x0fffffff)
       // .source      = (uint32_t)0x00120000,
 			// .destination = (uint32_t)0x00154344
 		},
@@ -99,10 +140,10 @@ test_result_t cubedma_RunTests(){
 				.dims = { 0, 0, 0 }
 			},
 			.dims = {
-				.width = COMPONENTS,
-				.height = 1,
-				.depth = 1,
-				.size_row = COMPONENTS
+				.width = 1024,
+				.height = 1024,
+				.depth = 90,
+				.size_row = 92160
 			}
 		},
 		.interrupt_enable = {
@@ -112,8 +153,8 @@ test_result_t cubedma_RunTests(){
 
 	/* Fill memory */
 	for (uint32_t i = 0; i < COMPONENTS; i++) {
-		source[i] = i;
-		destin[i] = 0xFF;
+		source[i] = (uint8_t)i;
+		destin[i] = 0xF;
 	}
 
 	/* Make sure the destination system memory is reset/cleaned for a valid
@@ -129,7 +170,9 @@ test_result_t cubedma_RunTests(){
 
 	// Xil_DCacheFlushRange((uint8_t*)source, sizeof(source));
   // cacheflush((uint8_t*)source, sizeof(source), DCACHE);
-  dcache_clean();
+  // dcache_clean();
+
+  __cpuc_flush_dcache_area(source, COMPONENTS);
 
   printf("Starting to innit\n");
 
@@ -181,20 +224,21 @@ test_result_t cubedma_RunTests(){
 	// 		}
 	// 	}
 	// }
-
+  int nPrinted = 0;
   uint32_t matches = 0;
   uint32_t misses = 0;
   printf("i:   src   dest\n\r");
-  // for (uint32_t i = 0; i < COMPONENTS; i++){
-  //   if (source[i] == destin[i]) {
-  //     matches++;
-  //   }
-  //   else {
-  //     if (i < 0xFF) {
-  //       printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
-  //     }
-  //   }
-  // }
+  for (uint32_t i = 0; i < COMPONENTS; i++){
+    if (source[i] == destin[i]) {
+      matches++;
+    }
+    else {
+      if (nPrinted < 20) {
+        nPrinted++;
+        printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+      }
+    }
+  }
 
 	if (matches != COMPONENTS) {
 		fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
@@ -212,10 +256,10 @@ test_result_t cubedma_RunTests(){
 
 static inline void dcache_clean(void)
 {
-   //  const int zero = 0;
-   //  /* clean entire D cache -> push to external memory. */
-   //  __asm volatile ("1: mrc p15, 0, r15, c7, c10, 3\n"
-   //                  " bne 1b\n" ::: "cc");
+    const int zero = 0;
+    // /* clean entire D cache -> push to external memory. */
+    // __asm volatile ("1: mrc p15, 0, r15, c7, c10, 3\n"
+    //                 " bne 1b\n" ::: "cc");
    //  /* drain the write buffer */
    // __asm volatile ("mcr 15, 0, %0, c7, c10, 4"::"r" (zero));
 }

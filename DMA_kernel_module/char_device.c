@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
+#include <linux/io.h>
 #include "hello_world_kernel_module.h"
 
 #include <linux/init.h>           // Macros used to mark up functions e.g. __init __exit
@@ -37,12 +38,17 @@ MODULE_AUTHOR("Derek Molloy");    ///< The author -- visible when you use modinf
 MODULE_DESCRIPTION("A simple Linux char driver for the BBB");  ///< The description -- see modinfo
 MODULE_VERSION("0.1");            ///< A version number to inform users
 
-static int    majorNumber;                  ///< Stores the device number -- determined automatically
-static char   message[256] = {0};           ///< Memory for the string that is passed from userspace
-static short  size_of_message;              ///< Used to remember the size of the string stored
-static int    numberOpens = 0;              ///< Counts the number of times the device is opened
-static struct class*  ebbcharClass  = NULL; ///< The device-driver class struct pointer
-static struct device* ebbcharDevice = NULL; ///< The device-driver device struct pointer
+// struct dma_channel{
+	static int    majorNumber;                  ///< Stores the device number -- determined automatically
+	static char   message[256] = {0};           ///< Memory for the string that is passed from userspace
+	static short  size_of_message;              ///< Used to remember the size of the string stored
+	static int    numberOpens = 0;              ///< Counts the number of times the device is opened
+	static struct class*  ebbcharClass  = NULL; ///< The device-driver class struct pointer
+	static struct device* ebbcharDevice = NULL; ///< The device-driver device struct pointer
+
+	struct dma_proxy_channel_interface *interface_p;
+	dma_addr_t interface_phys_addr;
+// }
 
 // The prototype functions for the character driver -- must come before the struct definition
 static int     dev_open(struct inode *, struct file *);
@@ -51,8 +57,6 @@ static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 
 
-struct dma_proxy_channel_interface *interface_p;
-dma_addr_t interface_phys_addr;
 
 static int mmap(struct file *file_p, struct vm_area_struct *vma)
 {
@@ -126,18 +130,29 @@ static int __init ebbchar_init(void){
  //      (unsigned int)interface_p);
 
 
-			dma_set_coherent_mask(ebbcharDevice, 0xFFFFFFFF);
-			interface_p = (struct dma_proxy_channel_interface *)
-				dmam_alloc_coherent(ebbcharDevice,
-									sizeof(struct dma_proxy_channel_interface),
-									&interface_phys_addr, GFP_KERNEL);
-			printk(KERN_INFO "Allocating uncached memory at 0x%08X\n",
-					 (unsigned int)interface_p);
+		// 	dma_set_coherent_mask(ebbcharDevice, 0xFFFFFFFF);
+		// 	interface_p = (struct dma_proxy_channel_interface *)
+		// 		dmam_alloc_coherent(ebbcharDevice,
+		// 							sizeof(struct dma_proxy_channel_interface),
+		// 							&interface_phys_addr, GFP_KERNEL);
+		// 	printk(KERN_INFO "Allocating uncached memory at 0x%08X\n",
+		// 			 (unsigned int)interface_p);
+		//
+		// if (!interface_p) {
+		// 	dev_err(ebbcharDevice, "DMA allocation error\n");
+		// 	return -1;
+		// }
 
-		if (!interface_p) {
-			dev_err(ebbcharDevice, "DMA allocation error\n");
-			return -1;
+		interface_p = (struct dma_proxy_channel_interface *)memremap(0x09000000, sizeof(struct dma_proxy_channel_interface), MEMREMAP_WB);
+		// interface_p = ioremap_wt(0x09000000, sizeof(struct dma_proxy_channel_interface));
+		if(interface_p==NULL){
+			printk(KERN_INFO "Failed to map memory to kernel module\n");
 		}
+		else{
+			printk(KERN_INFO "Allocating memory at 0x%08X\n", (unsigned int)interface_p);
+		}
+
+
   return 0;
 }
 

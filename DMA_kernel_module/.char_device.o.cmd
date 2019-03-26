@@ -822,6 +822,7 @@ deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o := \
   arch/arm/include/asm/domain.h \
     $(wildcard include/config/io/36.h) \
     $(wildcard include/config/cpu/cp15/mmu.h) \
+  include/linux/io.h \
   /home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.h \
   include/linux/uaccess.h \
 
