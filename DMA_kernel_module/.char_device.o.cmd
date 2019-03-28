@@ -823,7 +823,19 @@ deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o := \
     $(wildcard include/config/io/36.h) \
     $(wildcard include/config/cpu/cp15/mmu.h) \
   include/linux/io.h \
-  /home/andreas/MasterThesis/DMA_kernel_module/hello_world_kernel_module.h \
+  /home/andreas/MasterThesis/DMA_kernel_module/dma_proxy.h \
+  arch/arm/include/asm/cacheflush.h \
+    $(wildcard include/config/arm/errata/411920.h) \
+    $(wildcard include/config/cpu/cache/vipt.h) \
+    $(wildcard include/config/outer/cache.h) \
+    $(wildcard include/config/frame/pointer.h) \
+  arch/arm/include/asm/glue-cache.h \
+    $(wildcard include/config/cpu/cache/v4.h) \
+    $(wildcard include/config/cpu/cache/v4wb.h) \
+  arch/arm/include/asm/cachetype.h \
+    $(wildcard include/config/cpu/cache/vivt.h) \
+  arch/arm/include/asm/outercache.h \
+    $(wildcard include/config/outer/cache/sync.h) \
   include/linux/uaccess.h \
 
 /home/andreas/MasterThesis/DMA_kernel_module/char_device.o: $(deps_/home/andreas/MasterThesis/DMA_kernel_module/char_device.o)

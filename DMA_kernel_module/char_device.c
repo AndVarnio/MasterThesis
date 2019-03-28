@@ -22,7 +22,11 @@
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
 #include <linux/io.h>
-#include "hello_world_kernel_module.h"
+#include "dma_proxy.h"
+#include <asm/cacheflush.h>
+#include <asm/outercache.h>
+#include <linux/ioctl.h>
+#include <asm/page.h>
 
 #include <linux/init.h>           // Macros used to mark up functions e.g. __init __exit
 #include <linux/module.h>         // Core header for loading LKMs into the kernel
@@ -38,17 +42,19 @@ MODULE_AUTHOR("Derek Molloy");    ///< The author -- visible when you use modinf
 MODULE_DESCRIPTION("A simple Linux char driver for the BBB");  ///< The description -- see modinfo
 MODULE_VERSION("0.1");            ///< A version number to inform users
 
-// struct dma_channel{
-	static int    majorNumber;                  ///< Stores the device number -- determined automatically
-	static char   message[256] = {0};           ///< Memory for the string that is passed from userspace
-	static short  size_of_message;              ///< Used to remember the size of the string stored
-	static int    numberOpens = 0;              ///< Counts the number of times the device is opened
-	static struct class*  ebbcharClass  = NULL; ///< The device-driver class struct pointer
-	static struct device* ebbcharDevice = NULL; ///< The device-driver device struct pointer
-
+struct channel_data{
+	int    majorNumber;                  ///< Stores the device number -- determined automatically
+	char   message[256];           ///< Memory for the string that is passed from userspace
+	short  size_of_message;              ///< Used to remember the size of the string stored
+	int    numberOpens;              ///< Counts the number of times the device is opened
+	struct class*  ebbcharClass; ///< The device-driver class struct pointer
+	struct device* ebbcharDevice; ///< The device-driver device struct pointer
+	struct cdev cdev;
 	struct dma_proxy_channel_interface *interface_p;
 	dma_addr_t interface_phys_addr;
-// }
+};
+
+static struct channel_data dma_channel[2]; //0=send 1=recieve
 
 // The prototype functions for the character driver -- must come before the struct definition
 static int     dev_open(struct inode *, struct file *);
@@ -67,11 +73,56 @@ printk(KERN_INFO "Remapping\n");
 	 * that was allocated and convert to a page frame number.
 	 */
 
-		remap_pfn_range(vma, vma->vm_start,
-							virt_to_phys((void *)interface_p)>>PAGE_SHIFT,
-							vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	 struct inode *inode = (struct inode *)file_p->private_data;
+	 printk(KERN_INFO "ebbcharClass: %d, allocating: %ld Bytes\n", imajor(inode), vma->vm_end - vma->vm_start);
 
 
+	 if(imajor(inode)==dma_channel[0].majorNumber){//send
+		 remap_pfn_range(vma, vma->vm_start,
+								0x09000000>>PAGE_SHIFT,
+								vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	 }
+		else{//reieve
+
+			remap_pfn_range(vma, vma->vm_start,
+ 								0x0ffff000>>PAGE_SHIFT,
+ 								vma->vm_end - vma->vm_start, vma->vm_page_prot);
+
+		}
+
+	 // printk(KERN_INFO "EBBChar: vma=%p, vma->vm_start=%ld, virt_to_phys((void *)dma_chan->interface_p=0x%08x, vma->vm_end - vma->vm_start=%ld\n", vma, vma->vm_start, virt_to_phys((void *)dma_chan->interface_p)>>PAGE_SHIFT, vma->vm_end - vma->vm_start);
+	 //
+	 //
+	 // if(dma_chan!=NULL){
+		//  remap_pfn_range(vma, vma->vm_start,
+ 		// 					virt_to_phys((void *)dma_chan->interface_p)>>PAGE_SHIFT,
+ 		// 					vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	 // }
+		// else{
+		// 	printk(KERN_INFO "EBBChar: mmap NULL pointer \n");
+		// }
+
+
+}
+
+/* Perform I/O control to start a DMA transfer.
+ */
+
+// static long ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long ioctl(struct file* file, unsigned int cmd, unsigned long arg)
+{
+	printk(KERN_INFO "EBBChar: cmd=%d, arg=%ld, sizeof(struct dma_proxy_channel_interface)=%d \n", cmd, arg, sizeof(struct dma_proxy_channel_interface));
+
+	if(cmd==0){//Clean send cache
+		__cpuc_flush_dcache_area(dma_channel[0].interface_p, sizeof(struct dma_proxy_channel_interface));
+		__cpuc_flush_dcache_area(dma_channel[1].interface_p, sizeof(struct dma_proxy_channel_interface));
+		outer_clean_range(0x09000000, 0x19000000);
+	}
+	else{//Invalidate recieve
+		outer_inv_range(0x0ffff000, 19000000);
+		__cpuc_flush_dcache_area(dma_channel[1].interface_p, sizeof(struct dma_proxy_channel_interface));
+	}
+	return 0;
 }
 
 /** @brief Devices are represented as file structure in the kernel. The file_operations structure from
@@ -84,7 +135,8 @@ static struct file_operations fops =
   .read = dev_read,
   .write = dev_write,
   .release = dev_release,
-  .mmap = mmap
+  .mmap = mmap,
+	.unlocked_ioctl = ioctl
 };
 
 /** @brief The LKM initialization function
@@ -93,33 +145,49 @@ static struct file_operations fops =
 *  time and that it can be discarded and its memory freed up after that point.
 *  @return returns 0 if successful
 */
-static int __init ebbchar_init(void){
+static int __init init_channel(struct channel_data *dma_chan, char *name){
   printk(KERN_INFO "EBBChar: Initializing the EBBChar LKM\n");
 
+	char dev_name[32] = DEVICE_NAME;
+	strcat(dev_name, name);
+
+	char class_name[32] = DEVICE_NAME;
+	strcat(class_name, name);
+
+
+	cdev_init(&dma_chan->cdev, &fops);
+	dma_chan->cdev.owner = THIS_MODULE;
+	int rc = cdev_add(&dma_chan->cdev, MKDEV(dma_chan->majorNumber, 0), 1);
+
+	if (rc) {
+		dev_err(dma_chan->ebbcharDevice, "unable to add char device\n");
+	}
+
   // Try to dynamically allocate a major number for the device -- more difficult but worth it
-  majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
-  if (majorNumber<0){
+  dma_chan->majorNumber = register_chrdev(0, dev_name, &fops);
+  if (dma_chan->majorNumber<0){
      printk(KERN_ALERT "EBBChar failed to register a major number\n");
-     return majorNumber;
+     return dma_chan->majorNumber;
   }
-  printk(KERN_INFO "EBBChar: registered correctly with major number %d\n", majorNumber);
+  printk(KERN_INFO "EBBChar: registered correctly with major number %d\n", dma_chan->majorNumber);
 
   // Register the device class
-  ebbcharClass = class_create(THIS_MODULE, CLASS_NAME);
-  if (IS_ERR(ebbcharClass)){                // Check for error and clean up if there is
-     unregister_chrdev(majorNumber, DEVICE_NAME);
+  dma_chan->ebbcharClass = class_create(THIS_MODULE, class_name);
+  if (IS_ERR(dma_chan->ebbcharClass)){                // Check for error and clean up if there is
+     unregister_chrdev(dma_chan->majorNumber, dev_name);
      printk(KERN_ALERT "Failed to register device class\n");
-     return PTR_ERR(ebbcharClass);          // Correct way to return an error on a pointer
+     return PTR_ERR(dma_chan->ebbcharClass);          // Correct way to return an error on a pointer
   }
   printk(KERN_INFO "EBBChar: device class registered correctly\n");
 
   // Register the device driver
-  ebbcharDevice = device_create(ebbcharClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
-  if (IS_ERR(ebbcharDevice)){               // Clean up if there is an error
-     class_destroy(ebbcharClass);           // Repeated code but the alternative is goto statements
-     unregister_chrdev(majorNumber, DEVICE_NAME);
+
+  dma_chan->ebbcharDevice = device_create(dma_chan->ebbcharClass, NULL, MKDEV(dma_chan->majorNumber, 0), NULL, dev_name);
+  if (IS_ERR(dma_chan->ebbcharDevice)){               // Clean up if there is an error
+     class_destroy(dma_chan->ebbcharClass);           // Repeated code but the alternative is goto statements
+     unregister_chrdev(dma_chan->majorNumber, dev_name);
      printk(KERN_ALERT "Failed to create the device\n");
-     return PTR_ERR(ebbcharDevice);
+     return PTR_ERR(dma_chan->ebbcharDevice);
   }
   printk(KERN_INFO "EBBChar: device class created correctly\n"); // Made it! device was initialized
 
@@ -143,28 +211,64 @@ static int __init ebbchar_init(void){
 		// 	return -1;
 		// }
 
-		interface_p = (struct dma_proxy_channel_interface *)memremap(0x09000000, sizeof(struct dma_proxy_channel_interface), MEMREMAP_WB);
+		if(strcmp(name, "send")==0){
+			dma_chan->interface_p = (struct dma_proxy_channel_interface *)memremap(0x09000000, sizeof(struct dma_proxy_channel_interface), MEMREMAP_WB);
+			printk(KERN_INFO"Actual phys: 0x%08X\n", virt_to_phys((void *)dma_chan->interface_p)>>PAGE_SHIFT);
+			// uint32_t i;
+			// for (i = 0; i < TEST_SIZE; i++) {
+			// 	dma_chan->interface_p->buffer[i] = (uint8_t)i;
+			// }
+		}
+		else{
+			uint32_t i;
+			dma_chan->interface_p = (struct dma_proxy_channel_interface *)memremap(0x0ffff000, sizeof(struct dma_proxy_channel_interface), MEMREMAP_WB);
+			// for (i = 0; i < TEST_SIZE; i++) {
+			// 	dma_chan->interface_p->buffer[i] = 0xF;
+			// }
+		}
 		// interface_p = ioremap_wt(0x09000000, sizeof(struct dma_proxy_channel_interface));
-		if(interface_p==NULL){
+		if(dma_chan->interface_p==NULL){
 			printk(KERN_INFO "Failed to map memory to kernel module\n");
 		}
 		else{
-			printk(KERN_INFO "Allocating memory at 0x%08X\n", (unsigned int)interface_p);
+			printk(KERN_INFO "Allocating memory at 0x%08X\n", (unsigned int)dma_chan->interface_p);
 		}
 
 
   return 0;
 }
 
+static int __init ebbchar_init(void){
+	int ret;
+
+	ret = init_channel(&dma_channel[0], "send");
+
+	if (ret) {
+		return ret;
+	}
+
+	ret = init_channel(&dma_channel[1], "recieve");
+	if (ret) {
+		return ret;
+	}
+
+	return 0;
+}
 /** @brief The LKM cleanup function
 *  Similar to the initialization function, it is static. The __exit macro notifies that if this
 *  code is used for a built-in driver (not a LKM) that this function is not required.
 */
 static void __exit ebbchar_exit(void){
-  device_destroy(ebbcharClass, MKDEV(majorNumber, 0));     // remove the device
-  class_unregister(ebbcharClass);                          // unregister the device class
-  class_destroy(ebbcharClass);                             // remove the device class
-  unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
+  device_destroy(dma_channel[0].ebbcharClass, MKDEV(dma_channel[0].majorNumber, 0));     // remove the device
+  class_unregister(dma_channel[0].ebbcharClass);                          // unregister the device class
+  class_destroy(dma_channel[0].ebbcharClass);                             // remove the device class
+  unregister_chrdev(dma_channel[0].majorNumber, "ebbcharsend");             // unregister the major number
+
+	device_destroy(dma_channel[1].ebbcharClass, MKDEV(dma_channel[1].majorNumber, 0));     // remove the device
+  class_unregister(dma_channel[1].ebbcharClass);                          // unregister the device class
+  class_destroy(dma_channel[1].ebbcharClass);                             // remove the device class
+  unregister_chrdev(dma_channel[1].majorNumber, "ebbcharrecieve");             // unregister the major number
+
   printk(KERN_INFO "EBBChar: Goodbye from the LKM!\n");
 }
 
@@ -174,9 +278,15 @@ static void __exit ebbchar_exit(void){
 *  @param filep A pointer to a file object (defined in linux/fs.h)
 */
 static int dev_open(struct inode *inodep, struct file *filep){
-  numberOpens++;
-  printk(KERN_INFO "EBBChar: Device has been opened %d time(s)\n", numberOpens);
-  return 0;
+  // numberOpens++;
+  // printk(KERN_INFO "EBBChar: Device has been opened %d time(s)\n", numberOpens);
+	struct channel_data* tmp_chn;
+	tmp_chn = container_of(inodep->i_cdev, struct channel_data, cdev);
+	printk(KERN_INFO "tmp_chn: 0x%08X\n", (unsigned int)tmp_chn);
+	printk(KERN_INFO "iminor=%d\n", iminor(inodep));
+	printk(KERN_INFO "iminor=%d\n", imajor(inodep));
+	filep->private_data = inodep;
+	return 0;
 }
 
 /** @brief This function is called whenever device is being read from user space i.e. data is
@@ -188,26 +298,26 @@ static int dev_open(struct inode *inodep, struct file *filep){
 *  @param offset The offset if required
 */
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-  int error_count = 0;
-	int i;
-
-	printk(KERN_INFO "kernel: interface_p-<length = %d\n", interface_p->length);
-
-	for(i=0; i<20; i++){
-		printk(KERN_INFO "%d\n", interface_p->buffer[i]);
-	}
-
-  // copy_to_user has the format ( * to, *from, size) and returns 0 on success
-  error_count = copy_to_user(buffer, interface_p, interface_p->length);
-
-  if (error_count==0){            // if true then have success
-     printk(KERN_INFO "EBBChar: Sent %d characters to the user\n", size_of_message);
-     return (size_of_message=0);  // clear the position to the start and return 0
-  }
-  else {
-     printk(KERN_INFO "EBBChar: Failed to send %d characters to the user\n", error_count);
-     return -EFAULT;              // Failed -- return a bad address message (i.e. -14)
-  }
+  // int error_count = 0;
+	// int i;
+	//
+	// printk(KERN_INFO "kernel: interface_p-<length = %d\n", interface_p->length);
+	//
+	// for(i=0; i<20; i++){
+	// 	printk(KERN_INFO "%d\n", interface_p->buffer[i]);
+	// }
+	//
+  // // copy_to_user has the format ( * to, *from, size) and returns 0 on success
+  // error_count = copy_to_user(buffer, interface_p, interface_p->length);
+	//
+  // if (error_count==0){            // if true then have success
+  //    printk(KERN_INFO "EBBChar: Sent %d characters to the user\n", size_of_message);
+  //    return (size_of_message=0);  // clear the position to the start and return 0
+  // }
+  // else {
+  //    printk(KERN_INFO "EBBChar: Failed to send %d characters to the user\n", error_count);
+  //    return -EFAULT;              // Failed -- return a bad address message (i.e. -14)
+  // }
 }
 
 /** @brief This function is called whenever the device is being written to from user space i.e.
@@ -219,9 +329,9 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 *  @param offset The offset if required
 */
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-  sprintf(message, "%s(%zu letters)", buffer, len);   // appending received string with its length
-  size_of_message = strlen(message);                 // store the length of the stored message
-  printk(KERN_INFO "EBBChar: Received %zu characters from the user\n", len);
+  // sprintf(message, "%s(%zu letters)", buffer, len);   // appending received string with its length
+  // size_of_message = strlen(message);                 // store the length of the stored message
+  // printk(KERN_INFO "EBBChar: Received %zu characters from the user\n", len);
   return len;
 }
 

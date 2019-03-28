@@ -1,5 +1,5 @@
-// #include "HSICamera.hpp"
-#include "HSICameraPC.hpp"
+#include "HSICamera.hpp"
+// #include "HSICameraPC.hpp"
 
 #include <stdlib.h>
 // g++ test.cpp -lueye_api

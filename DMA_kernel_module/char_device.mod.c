@@ -20,18 +20,23 @@ __attribute__((section("__versions"))) = {
 	{ 0x1bfd809d, __VMLINUX_SYMBOL_STR(module_layout) },
 	{ 0xd616908a, __VMLINUX_SYMBOL_STR(class_unregister) },
 	{ 0x68ebbd2a, __VMLINUX_SYMBOL_STR(device_destroy) },
-	{ 0x3abb26b0, __VMLINUX_SYMBOL_STR(ioremap_wc) },
+	{ 0x5dcf6341, __VMLINUX_SYMBOL_STR(outer_cache) },
+	{ 0x59d29dab, __VMLINUX_SYMBOL_STR(v7_flush_kern_dcache_area) },
+	{ 0x5af0a89a, __VMLINUX_SYMBOL_STR(remap_pfn_range) },
+	{ 0xc65537d0, __VMLINUX_SYMBOL_STR(memremap) },
+	{ 0xe2d5255a, __VMLINUX_SYMBOL_STR(strcmp) },
 	{ 0x80b1cd59, __VMLINUX_SYMBOL_STR(class_destroy) },
 	{ 0x3f32f282, __VMLINUX_SYMBOL_STR(device_create) },
 	{ 0x6bc3fbc0, __VMLINUX_SYMBOL_STR(__unregister_chrdev) },
 	{ 0xd4d7708e, __VMLINUX_SYMBOL_STR(__class_create) },
 	{ 0x17b7ceb0, __VMLINUX_SYMBOL_STR(__register_chrdev) },
-	{ 0xf4fa543b, __VMLINUX_SYMBOL_STR(arm_copy_to_user) },
-	{ 0x97255bdf, __VMLINUX_SYMBOL_STR(strlen) },
-	{ 0x91715312, __VMLINUX_SYMBOL_STR(sprintf) },
-	{ 0x5af0a89a, __VMLINUX_SYMBOL_STR(remap_pfn_range) },
-	{ 0xefd6cf06, __VMLINUX_SYMBOL_STR(__aeabi_unwind_cpp_pr0) },
+	{ 0xb960247c, __VMLINUX_SYMBOL_STR(dev_err) },
+	{ 0x1cd5f9ba, __VMLINUX_SYMBOL_STR(cdev_add) },
+	{ 0xc35f62c8, __VMLINUX_SYMBOL_STR(cdev_init) },
+	{ 0x61651be, __VMLINUX_SYMBOL_STR(strcat) },
+	{ 0x5f754e5a, __VMLINUX_SYMBOL_STR(memset) },
 	{ 0x27e1a049, __VMLINUX_SYMBOL_STR(printk) },
+	{ 0xefd6cf06, __VMLINUX_SYMBOL_STR(__aeabi_unwind_cpp_pr0) },
 };
 
 static const char __module_depends[]
@@ -40,4 +45,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "6CFF8F3235A933A835EF01B");
+MODULE_INFO(srcversion, "C73BF92B43662817C9C45F0");

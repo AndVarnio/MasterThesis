@@ -6,7 +6,7 @@
  * not working in the driver test.
  */
 
-#define TEST_SIZE (3 * 1024 * 1024)
+#define TEST_SIZE (90 *1024 * 1024)
 
 struct dma_proxy_channel_interface {
 	unsigned char buffer[TEST_SIZE];

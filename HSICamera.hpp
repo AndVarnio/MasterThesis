@@ -49,7 +49,7 @@ class HSICamera
       int g_bands_binned_per_row_count;
       int g_full_binns_per_row_count = 0;
       const int BINNINGFACTOR = 6;
-      const binningMode binning_method = normalMean;
+      const binningMode binning_method = simdMedian;
       bool even_bin_count;
 
       //Debug variable
@@ -91,8 +91,8 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
 
   printf("Initializing camera parameters\n");
   g_sensor_rows_count = rows;
-  g_sensor_columns_count = columns/2;
-  g_bands_count = columns/2;
+  g_sensor_columns_count = columns;
+  g_bands_count = columns;
   g_bands_binned_per_row_count = g_bands_count;
   UINT pixel_clock = pixelClockMHz;
   g_frame_count = frames;
@@ -328,18 +328,18 @@ void HSICamera::captureSIMDMedianBinning(){
   ////////////////////
 
   char* p_raw_frame;
-  int imagesequence_id = 0;
+  INT imagesequence_id = 0;
   int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
 
   for(int image_number=0; image_number<g_frame_count; image_number++){
     // gettimeofday(&tv1, NULL);
     int errorCode;
     do{
-      errorCode = is_WaitForNextImage(camera, 1000, &(p_raw_frame), &imagesequence_id);
-
+      errorCode = is_WaitForNextImage(camera, 1000, &p_raw_frame, &imagesequence_id);
+      printf("Returned imageseq id: %d\n", imagesequence_id);
       if(errorCode!=IS_SUCCESS){
-        is_UnlockSeqBuf (camera, 1, p_raw_frame);
-        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+        is_UnlockSeqBuf (camera, imagesequence_id, p_raw_frame);
+        // printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
       }
     }while(errorCode!=IS_SUCCESS);
 
@@ -375,7 +375,8 @@ void HSICamera::captureSIMDMedianBinning(){
         p_binned_frames[image_number][binned_frames_offset+g_full_binns_per_row_count] = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
       }
     }
-    is_UnlockSeqBuf (camera, 1, p_raw_frame);
+    printf("Unlocking imageseq id: %d\n", imagesequence_id);
+    is_UnlockSeqBuf (camera, imagesequence_id, p_raw_frame);
     gettimeofday(&tv2, NULL);
     totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
 }
@@ -498,8 +499,20 @@ void HSICamera::captureMeanBinning(){
       errorCode = is_WaitForNextImage(camera, 2000, &(p_raw_frame), &imagesequence_id);
 
       if(errorCode!=IS_SUCCESS){
+
+        UEYE_CAPTURE_STATUS_INFO CaptureStatusInfo;
+
+    INT nRet2 = is_CaptureStatus(camera, IS_CAPTURE_STATUS_INFO_CMD_GET, (void*)&CaptureStatusInfo, sizeof(CaptureStatusInfo));
+
+
+        printf("Total: %d\n", CaptureStatusInfo.dwCapStatusCnt_Total);
+        printf("DrvOutOfBuffers: %d\n", CaptureStatusInfo.adwCapStatusCnt_Detail[IS_CAP_STATUS_DRV_OUT_OF_BUFFERS]);
+        printf("ApiNoDestMem: %d\n", CaptureStatusInfo.adwCapStatusCnt_Detail[IS_CAP_STATUS_API_NO_DEST_MEM]);
+        printf("ApiImageLocked: %d\n", CaptureStatusInfo.adwCapStatusCnt_Detail[IS_CAP_STATUS_API_IMAGE_LOCKED]);
+        printf("UsbTransferFail: %d\n", CaptureStatusInfo.adwCapStatusCnt_Detail[IS_CAP_STATUS_USB_TRANSFER_FAILED]);
+
         is_UnlockSeqBuf (camera, 1, p_raw_frame);
-        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+        // printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
       }
     }while(errorCode!=IS_SUCCESS);
 

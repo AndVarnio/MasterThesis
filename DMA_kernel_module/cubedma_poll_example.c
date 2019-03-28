@@ -44,13 +44,14 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include<errno.h>
-
+#include "dma_proxy.h"
+#include <sys/ioctl.h>
 
 // #include <cachectl.h>
 // #include <asm/outercache.h>
 
-
-
+static struct dma_proxy_channel_interface *send_channel;
+static struct dma_proxy_channel_interface *recieve_channel;
 
 
 typedef enum { TEST_SUCCESS, TEST_FAIL } test_result_t;
@@ -75,7 +76,7 @@ int main()
     return 0;
 }
 
-#define COMPONENTS 94371840//1920*1080*60;
+#define COMPONENTS TEST_SIZE//1920*1080*60;
 #define TIMEOUT 0xFFFFF
 
 // volatile uint32_t source[COMPONENTS] __attribute__ ((aligned (32)));
@@ -96,38 +97,65 @@ uint8_t* destin;
 
 test_result_t cubedma_RunTests(){
   ///////////Map transmit buffer
-  int fd;
+  // int fd;
+  //
+  // if ((fd = open("/dev/mem", O_RDWR|O_SYNC)) < 0)
+  // printf("Opened file\n");
+  //
+  // if (fd < 0) {
+  // perror("/dev/mem");
+  // exit(-1);
+  // }
+  //
+  // printf("Pagesize: %d\n", getpagesize());
+  //
+  // if ((source = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x09000000)))
+  //  == MAP_FAILED) {
+  //  perror("MM2S_status_register");
+  //  exit(-1);
+  //  }
+  //  ///////////////Map recieve buff
+  //
+  //  if ((destin = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x0c000000)))
+  //   == MAP_FAILED) {
+  //   perror("gister");
+  //   exit(-1);
+  //   }
 
-  if ((fd = open("/dev/mem", O_RDWR|O_SYNC)) < 0)
-  printf("Opened file\n");
 
-  if (fd < 0) {
-  perror("/dev/mem");
-  exit(-1);
-  }
+  // ///////////Map transmit n recieve buffer
+    int fd_send = open("/dev/ebbcharsend", O_RDWR);
+  	if (fd_send < 1) {
+  		printf("Unable to open ebbcharsend");
 
-  printf("Pagesize: %d\n", getpagesize());
+  	}
 
-  if ((source = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x09000000)))
-   == MAP_FAILED) {
-   perror("MM2S_status_register");
-   exit(-1);
-   }
-   ///////////////Map recieve buff
+  	int fd_recieve = open("/dev/ebbcharrecieve", O_RDWR);
+  	if (fd_recieve < 1) {
+  		printf("Unable to open ebbcharrecieve");
 
-   if ((destin = static_cast<uint8_t*>(mmap(0, COMPONENTS, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x0c000000)))
-    == MAP_FAILED) {
-    perror("gister");
-    exit(-1);
-    }
+  	}
+
+    printf("Userspace: Allocating %d Bytes\n", sizeof(struct dma_proxy_channel_interface));
+    send_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dma_proxy_channel_interface),
+  									PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
+
+  	recieve_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dma_proxy_channel_interface),
+  									PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
+
+      	if ((send_channel == MAP_FAILED) || (recieve_channel == MAP_FAILED)) {
+          	printf("Failed to mmap\n");
+
+      	}
+  ///////////////////////////////////////////
 
 	printf("Transferring %u components from 0x%08x to 0x%08x\n\r",
-			(uint32_t)COMPONENTS, (uint32_t)&source, (uint32_t)&destin);
-
+			(uint32_t)COMPONENTS, (uint32_t)&send_channel, (uint32_t)&recieve_channel);
+  printf("What happens here?\n");
 	cubedma_init_t cubedma_parameters = {
 		.address = {
 			.source      = (uint32_t)(0x09000000),
-			.destination = (uint32_t)(0x0fffffff)
+			.destination = (uint32_t)(0x0ffff000)
       // .source      = (uint32_t)0x00120000,
 			// .destination = (uint32_t)0x00154344
 		},
@@ -150,13 +178,21 @@ test_result_t cubedma_RunTests(){
 			{0, 0}, {0, 0}
 		}
 	};
-
+printf("Fill mem\n");
 	/* Fill memory */
 	for (uint32_t i = 0; i < COMPONENTS; i++) {
-		source[i] = (uint8_t)i;
-		destin[i] = 0xF;
+    // printf("Writing element: %d\n", i);
+		// source[i] = (uint8_t)i;
+		// destin[i] = 0xF;
+    // if(i%100000==0){
+    //   printf("Writing element: %d\n", i);
+    // }
+    send_channel->buffer[i] = (uint8_t)i;
+    recieve_channel->buffer[i] = 0xF;
 	}
 
+  unsigned long dummy =658;
+  ioctl(fd_send, 0, &dummy);
 	/* Make sure the destination system memory is reset/cleaned for a valid
 	 * test result. Source memory is flushed by the driver itself.
 	 */
@@ -172,7 +208,7 @@ test_result_t cubedma_RunTests(){
   // cacheflush((uint8_t*)source, sizeof(source), DCACHE);
   // dcache_clean();
 
-  __cpuc_flush_dcache_area(source, COMPONENTS);
+  //__cpuc_flush_dcache_area(source, COMPONENTS);
 
   printf("Starting to innit\n");
 
@@ -224,18 +260,23 @@ test_result_t cubedma_RunTests(){
 	// 		}
 	// 	}
 	// }
+
+  ioctl(fd_send, 1, &dummy);
+
   int nPrinted = 0;
   uint32_t matches = 0;
   uint32_t misses = 0;
   printf("i:   src   dest\n\r");
   for (uint32_t i = 0; i < COMPONENTS; i++){
-    if (source[i] == destin[i]) {
+    // if (source[i] == destin[i]) {
+    if (send_channel->buffer[i] == recieve_channel->buffer[i]) {
       matches++;
     }
     else {
-      if (nPrinted < 20) {
+      if (recieve_channel->buffer[i]!=0xF) {
         nPrinted++;
-        printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+        // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i], recieve_channel->buffer[i]);
       }
     }
   }
