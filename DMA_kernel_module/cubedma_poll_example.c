@@ -44,7 +44,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include<errno.h>
-#include "dma_proxy.h"
+#include "dma_parameters.h"
 #include <sys/ioctl.h>
 
 // #include <cachectl.h>
@@ -124,13 +124,13 @@ test_result_t cubedma_RunTests(){
 
 
   // ///////////Map transmit n recieve buffer
-    int fd_send = open("/dev/ebbcharsend", O_RDWR);
+    int fd_send = open("/dev/cubedmasend", O_RDWR);
   	if (fd_send < 1) {
   		printf("Unable to open ebbcharsend");
 
   	}
 
-  	int fd_recieve = open("/dev/ebbcharrecieve", O_RDWR);
+  	int fd_recieve = open("/dev/cubedmareceive", O_RDWR);
   	if (fd_recieve < 1) {
   		printf("Unable to open ebbcharrecieve");
 
@@ -154,8 +154,8 @@ test_result_t cubedma_RunTests(){
   printf("What happens here?\n");
 	cubedma_init_t cubedma_parameters = {
 		.address = {
-			.source      = (uint32_t)(0x09000000),
-			.destination = (uint32_t)(0x0ffff000)
+			.source      = (uint32_t)(SEND_PHYS_ADDR),
+			.destination = (uint32_t)(RECIEVE_PHYS_ADDR)
       // .source      = (uint32_t)0x00120000,
 			// .destination = (uint32_t)0x00154344
 		},

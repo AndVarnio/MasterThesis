@@ -12,6 +12,7 @@
 #include <stdio.h>   /* Ditto */
 // #include <xil_cache.h>
 #include <unistd.h>
+#include <stdint.h>
 #define CUBEDMA_BASE 0x43c00000
 // #define CUBEDMA_BASE 0x40000000
 
