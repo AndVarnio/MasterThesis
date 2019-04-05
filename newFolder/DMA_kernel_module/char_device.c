@@ -159,13 +159,13 @@ static void __exit ebbchar_exit(void){
   class_unregister(dma_channel[0].p_device_class);                          // unregister the device class
   class_destroy(dma_channel[0].p_device_class);                             // remove the device class
   unregister_chrdev(dma_channel[0].major_number, "ebbcharsend");             // unregister the major number
-	cdev_del(&dma_channel[0].cdev);
+	cdev_del(&dma_channel[0]->cdev);
 
 	device_destroy(dma_channel[1].p_device_class, MKDEV(dma_channel[1].major_number, 0));     // remove the device
   class_unregister(dma_channel[1].p_device_class);                          // unregister the device class
   class_destroy(dma_channel[1].p_device_class);                             // remove the device class
   unregister_chrdev(dma_channel[1].major_number, "ebbcharrecieve");             // unregister the major number
-	cdev_del(&dma_channel[1].cdev);
+	cdev_del(&dma_channel[1]->cdev);
   printk(KERN_INFO "EBBChar: Goodbye from the LKM!\n");
 }
 
@@ -175,7 +175,7 @@ static void __exit ebbchar_exit(void){
 *  @param filep A pointer to a file object (defined in linux/fs.h)
 */
 static int dev_open(struct inode *inodep, struct file *filep){
-  // numberOpens++;
+  numberOpens++;
 
 	printk(KERN_INFO "iminor=%d\n", iminor(inodep));
 	printk(KERN_INFO "iminor=%d\n", imajor(inodep));

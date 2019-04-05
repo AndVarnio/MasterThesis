@@ -72,6 +72,4 @@ cubedma_error_t cubedma_StartTransfer(transfer_t transfer);
 cubedma_interrupt_t cubedma_ReadInterrupts(transfer_t transfer);
 bool cubedma_TransferDone(transfer_t transfer);
 bool dbg_cmp_mem();
-
-
 #endif /* SRC_CUBEDMA_H_ */

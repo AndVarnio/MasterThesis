@@ -18,7 +18,6 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0x1bfd809d, __VMLINUX_SYMBOL_STR(module_layout) },
-	{ 0x531c90ec, __VMLINUX_SYMBOL_STR(cdev_del) },
 	{ 0xd616908a, __VMLINUX_SYMBOL_STR(class_unregister) },
 	{ 0x68ebbd2a, __VMLINUX_SYMBOL_STR(device_destroy) },
 	{ 0x5dcf6341, __VMLINUX_SYMBOL_STR(outer_cache) },

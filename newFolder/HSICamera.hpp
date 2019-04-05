@@ -1,6 +1,15 @@
 #ifndef INCLUDE_HSICAMERA_HPP
 #define INCLUDE_HSICAMERA_HPP
 
+#include <ueye.h>
+#include <stdlib.h>
+// #include "../DMA_kernel_module/dma_parameters.h"
+
+extern "C" {
+#include "../DMA_kernel_module/dma_parameters.h"
+}
+#include "CubeDMADriver.hpp"
+
 enum cubeFormat { Bil, Bip, Bsq };
 enum cameraTriggerMode {Freerun, Swtrigger, Hwtrigger};
 enum binningMode {simdMedian, simdMean, normalMean, testBinn};
@@ -15,11 +24,12 @@ class HSICamera
 
     private:
 
+      HIDS camera = 1;
       char* p_raw_single_image;
 
       uint16_t** p_hsi_cube;
       uint16_t** p_binned_frames;
-      
+
       struct dma_data* send_channel;
       struct dma_data* recieve_channel;
 

@@ -1,10 +1,3 @@
-/*
- * cubedma.h
- *
- *  Created on: 17. sep. 2018
- *      Author: Lars
- */
-
 #ifndef SRC_CUBEDMA_H_
 #define SRC_CUBEDMA_H_
 
@@ -66,12 +59,17 @@ typedef struct {
 	} interrupt_enable;
 } cubedma_init_t;
 
-static void dcache_clean(void);
-cubedma_error_t cubedma_Init(cubedma_init_t param);
-cubedma_error_t cubedma_StartTransfer(transfer_t transfer);
-cubedma_interrupt_t cubedma_ReadInterrupts(transfer_t transfer);
-bool cubedma_TransferDone(transfer_t transfer);
-bool dbg_cmp_mem();
+class CubeDMADriver{
+	public:
+		cubedma_error_t cubedma_Init(cubedma_init_t param);
+		cubedma_error_t cubedma_StartTransfer(transfer_t transfer);
+		cubedma_interrupt_t cubedma_ReadInterrupts(transfer_t transfer);
+		bool cubedma_TransferDone(transfer_t transfer);
+		void cubedma_ClearInterrupts();
+	private:
+		void printBits(size_t const size, void const * const ptr);
+};
+
 
 
 #endif /* SRC_CUBEDMA_H_ */
