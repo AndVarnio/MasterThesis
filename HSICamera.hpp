@@ -1,6 +1,15 @@
 #ifndef INCLUDE_HSICAMERA_HPP
 #define INCLUDE_HSICAMERA_HPP
 
+#include <ueye.h>
+#include <stdlib.h>
+// #include "../DMA_kernel_module/dma_parameters.h"
+
+extern "C" {
+#include "../DMA_kernel_module/dma_parameters.h"
+}
+#include "CubeDMADriver.hpp"
+
 enum cubeFormat { Bil, Bip, Bsq };
 enum cameraTriggerMode {Freerun, Swtrigger, Hwtrigger};
 enum binningMode {simdMedian, simdMean, normalMean, testBinn};
@@ -15,19 +24,25 @@ class HSICamera
 
     private:
 
-      char* p_raw_single_image;
+      HIDS camera = 1;
+      const int RAWFRAMESCOUNT = 10;
 
+      char** p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
+      int* p_frame_ID = new int[RAWFRAMESCOUNT];
+      int fd_send;
+      int fd_recieve;
+      char* p_raw_single_image;
       uint16_t** p_hsi_cube;
       uint16_t** p_binned_frames;
-      
+
       struct dma_data* send_channel;
       struct dma_data* recieve_channel;
 
       // Sensor spec
       int g_sensor_rows_count;
       int g_sensor_columns_count;
-
       int g_bands_count;
+      int g_bit_depth = 16;
 
       // Cube spec
       int g_cube_clumns_count;
@@ -40,6 +55,8 @@ class HSICamera
       cameraTriggerMode triggermode;
 
       // Binning
+      const binningMode binning_method = testBinn;
+      const int BINNINGFACTOR = 12;
       int g_samples_last_bin_count;
       int g_bands_binned_per_row_count;
       int g_full_binns_per_row_count;
@@ -52,7 +69,7 @@ class HSICamera
 
       void swTriggerCapture();
       void freeRunCapture();
-      void writeCubeToFile();
+
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
       void writeRawDataToFile(char**, int, int);
@@ -61,6 +78,8 @@ class HSICamera
       void captureMeanBinning();
       void captureSIMDMeanBinning();
       void testBinning();
+      void writeCubeToFile();
+      void transferDMA();
       // Binning
       int random_partition(unsigned char* arr, int start, int end);
       int random_selection(unsigned char* arr, int start, int end, int k);

@@ -1,5 +1,3 @@
-
-
 #include<ueye.h>
 #include<stdio.h>
 #include<string.h>
@@ -11,24 +9,14 @@
 
 #include <sys/mman.h>
 #include <fcntl.h>
-extern "C" {
-#include "DMA_kernel_module/dma_parameters.h"
-#include "DMA_kernel_module/cubedma.h"
-};
 
+#include "CubeDMADriver.hpp"
 #include "HSICamera.hpp"
-// extern "C" cubedma_error_t cubedma_Init(cubedma_init_t param);
+#include <sys/ioctl.h>
 
-const int RAWFRAMESCOUNT = 10;
-int g_bit_depth = 16;
-const int BINNINGFACTOR = 12;
-const binningMode binning_method = testBinn;
-
-char** p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
-int* p_frame_ID = new int[RAWFRAMESCOUNT];
-HIDS camera = 1;
-
-
+////////////////For debug
+#define TIMEOUT 0xFFFFF
+///////////////////////////////////
 
 HSICamera::HSICamera(){
   is_SetErrorReport (camera, IS_ENABLE_ERR_REP);
@@ -38,6 +26,7 @@ HSICamera::HSICamera(){
     exit (EXIT_FAILURE);
   }
 }
+
 
 void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, double fps, cameraTriggerMode cameraMode, cubeFormat cube){
 
@@ -180,20 +169,17 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
       break;
   }
 
-  //Set up DMA//
-  int fd_send = open("/dev/cubedmasend", O_RDWR);
+  ////Get pointer to DMA memory
+  fd_send = open("/dev/cubedmasend", O_RDWR);
   if (fd_send < 1) {
     printf("Unable to open send channel");
-
   }
 
-  int fd_recieve = open("/dev/cubedmareceive", O_RDWR);
+  fd_recieve = open("/dev/cubedmarecieve", O_RDWR);
   if (fd_recieve < 1) {
     printf("Unable to open receive channel");
-
   }
 
-  printf("Userspace: Allocating %d Bytes\n", sizeof(struct dma_data));
   send_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
                   PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
 
@@ -203,8 +189,8 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   if ((send_channel == MAP_FAILED) || (recieve_channel == MAP_FAILED)) {
     printf("Failed to mmap\n");
   }
-  /////////////
 }
+
 
 void HSICamera::runCubeCapture(){
   switch(triggermode)
@@ -262,82 +248,13 @@ void HSICamera::freeRunCapture(){
       break;
   }
 
+  // writeCubeToFile();
+  transferDMA();
+
+  printf("Freeing imageMemory\n");
   for(int imageMemory=0; imageMemory<RAWFRAMESCOUNT; imageMemory++){
     is_FreeImageMem (camera, p_imagesequence_camera[imageMemory], p_frame_ID[imageMemory]);
   }
-
-
-  ///////////////Transfer image to FPGA/////////////////////
-  cubedma_init_t cubedma_parameters = {
-		.address = {
-			.source      = (uint32_t)(SEND_PHYS_ADDR),
-			.destination = (uint32_t)(RECIEVE_PHYS_ADDR)
-      // .source      = (uint32_t)0x00120000,
-			// .destination = (uint32_t)0x00154344
-		},
-		.cube = {
-			.n_planes  = 1,
-			.c_offset  = 0,
-			.planewise =  0,
-			.blocks    = {
-				.enabled = 0,
-				.dims = { 0, 0, 0 }
-			},
-			.dims = {
-				.width = 1024,
-				.height = 1024,
-				.depth = 90,
-				.size_row = 92160
-			}
-		},
-		.interrupt_enable = {
-			{0, 0}, {0, 0}
-		}
-	};
-
-  //cubedma_Init(cubedma_parameters);
-  /////////////////////////////////////////////////////////
-
-  ////////////////// Store image ////////////////////////////////////
-  /*char file_name_cube[64];
-  strcpy(file_name_cube, "cube.raw");
-  FILE * p_file_cube = fopen ( file_name_cube , "wb" );
-  if (p_file_cube==NULL) {fputs ("File error\n",stderr); exit (1);}
-
-  uint16_t* column_cube = new uint16_t[g_cube_clumns_count];
-  ///Make cube
-  if(cube_type==Bil){//BIL
-    for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
-      for(int band=0; band<g_bands_binned_per_row_count; band++){
-        for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
-          column_cube[band*g_sensor_rows_count+pixel] = p_binned_frames[cube_row][g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
-        }
-      }
-      fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
-    }
-  }
-  else if(cube_type==Bip){//BIP
-    for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
-      for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
-        for(int band=0; band<g_full_binns_per_row_count; band++){
-          column_cube[pixel*g_full_binns_per_row_count+band] = p_binned_frames[cube_row][g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
-        }
-      }
-      fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
-    }
-  }
-  else{//BSQ
-    for(int band=0; band<g_full_binns_per_row_count; band++){
-      for(int rowSpatial=0; rowSpatial<g_frame_count; rowSpatial++){
-        for(int pixel=0; pixel<g_cube_clumns_count; pixel++){
-          column_cube[pixel] = p_binned_frames[rowSpatial][g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
-        }
-        fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
-      }
-    }
-    fclose (p_file_cube);
-  }*/
-  //////////////////////////////////////////////////////////////////////
 }
 
 void HSICamera::testBinning(){
@@ -669,6 +586,144 @@ void HSICamera::captureMeanBinning(){
 }
 
   printf("avg binning time: %f\n", totTime/g_frame_count);
+}
+
+// Sends cube to FPGA and waits until it has sent compressed image back
+void HSICamera::transferDMA(){
+
+  cubedma_init_t cubedma_parameters = {
+		.address = {
+			.source      = (uint32_t)(SEND_PHYS_ADDR),
+			.destination = (uint32_t)(RECIEVE_PHYS_ADDR)
+		},
+		.cube = {
+			.n_planes  = 1,
+			.c_offset  = 0,
+			.planewise =  0,
+			.blocks    = {
+				.enabled = 0,
+				.dims = { 0, 0, 0 }
+			},
+			.dims = {
+				.width = 107,
+				.height = 720,
+				.depth = 500,
+				.size_row = 53500
+			}
+		},
+		.interrupt_enable = {
+			{0, 0}, {0, 0}
+		}
+	};
+
+  CubeDMADriver cdma;
+  cdma.cubedma_Init(cubedma_parameters);
+
+  // Clean cache
+  unsigned long dummy; //This does nothing, parameter rquired by the kernel.
+  ioctl(fd_send, 0, &dummy);
+
+  cdma.cubedma_StartTransfer(S2MM);
+	cdma.cubedma_StartTransfer(MM2S);
+
+  // Wait until transfer and receive is done
+  volatile uint32_t time;
+	cubedma_error_t err = ERR_TIMEOUT;
+	for (time = 0; time < TIMEOUT; time++) {
+		if (cdma.cubedma_TransferDone(MM2S)) {
+			err = SUCCESS;
+			break;
+		}
+	}
+  if (err != SUCCESS) {
+		printf("ERROR: MM2S transfer timed out!\n\r");
+	}
+
+  err = ERR_TIMEOUT;
+	for (time = 0; time < TIMEOUT; time++) {
+		if (cdma.cubedma_TransferDone(S2MM)) {
+			err = SUCCESS;
+			break;
+		}
+	}
+	if (err != SUCCESS) {
+		printf("ERROR: S2MM transfer timed out!\n\r");
+	}
+
+  // Flush cache
+  ioctl(fd_send, 1, &dummy); //TODO: Make enum for clean and flush command
+
+  ///////////////Debug stuff
+  int nPrinted = 0;
+  uint32_t matches = 0;
+  uint32_t misses = 0;
+  printf("i:   src   dest\n\r");
+  for (uint32_t i = 0; i < TEST_SIZE; i++){
+    // if (source[i] == destin[i]) {
+    if (send_channel->buffer[i] == recieve_channel->buffer[i]) {
+      matches++;
+    }
+    else {
+      if (nPrinted<20) {
+        nPrinted++;
+        // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i], recieve_channel->buffer[i]);
+      }
+    }
+  }
+
+	if (matches != TEST_SIZE) {
+		fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
+				(double)matches*100/TEST_SIZE);
+
+	}
+	else {
+		printf("Transfer success!\n\r");
+	}
+  /////////////////////////////////
+}
+
+
+// Wtites cube that is in DMA memory in specified format
+void HSICamera::writeCubeToFile(){
+  char file_name_cube[64];
+  strcpy(file_name_cube, "cube.raw");
+  FILE * p_file_cube = fopen ( file_name_cube , "wb" );
+  if (p_file_cube==NULL) {fputs ("File error\n",stderr); exit (1);}
+
+  uint16_t* column_cube = new uint16_t[g_cube_clumns_count];
+  ///Make cube
+  if(cube_type==Bil){//BIL
+    for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
+      for(int band=0; band<g_bands_binned_per_row_count; band++){
+        for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
+          column_cube[band*g_sensor_rows_count+pixel] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
+        }
+      }
+      fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
+    }
+  }
+  else if(cube_type==Bip){//BIP
+    for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
+      for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
+        for(int band=0; band<g_full_binns_per_row_count; band++){
+          column_cube[pixel*g_full_binns_per_row_count+band] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
+        }
+      }
+      fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
+    }
+  }
+  else{//BSQ
+    for(int band=0; band<g_full_binns_per_row_count; band++){
+      for(int rowSpatial=0; rowSpatial<g_frame_count; rowSpatial++){
+        for(int pixel=0; pixel<g_cube_clumns_count; pixel++){
+          column_cube[pixel] = send_channel->buffer[rowSpatial*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
+        }
+        fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
+      }
+    }
+    fclose (p_file_cube);
+  }
 }
 
 
