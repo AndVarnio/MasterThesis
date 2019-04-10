@@ -15,10 +15,17 @@
 #include <sys/ioctl.h>
 
 ////////////////For debug
-#define TIMEOUT 0xFFFFF
+#define TIMEOUT 0xFFFFFF
+
+
+
+const int RAWFRAMESCOUNT = 10;
+const binningMode binning_method = testBinn;
+const int BINNINGFACTOR = 12;
 ///////////////////////////////////
 
 HSICamera::HSICamera(){
+  // camera = 1;
   is_SetErrorReport (camera, IS_ENABLE_ERR_REP);
   INT success = is_InitCamera(&camera, NULL);
   if(success!=IS_SUCCESS){
@@ -40,6 +47,12 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   triggermode = cameraMode;
   cube_type = cube;
   g_framerate = fps;
+
+
+
+  p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
+  p_frame_ID = new int[RAWFRAMESCOUNT];
+  g_bit_depth = 16;
 
   ////////////////////Set up binning variables////////////////////
   g_samples_last_bin_count = g_bands_count%BINNINGFACTOR;
@@ -226,7 +239,7 @@ void HSICamera::freeRunCapture(){
   printf("Actual framerate: %f\n", dblFPS);
 
   for (uint32_t i = 0; i < TEST_SIZE; i++) {
-    recieve_channel->buffer[i] = 0xFF;
+    recieve_channel->buffer[i].value = 0xFF;
 	}
   ///////////////////////////
 
@@ -326,14 +339,14 @@ void HSICamera::testBinning(){
         // bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, 12);
         // bitonicMerge6(p_pixels_in_frame+row_and_bin_offset_raw_frame);
-        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number] = p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number].value = p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
         // p_binned_frames[image_number][binned_rows_offset+bin_number] = p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
         bin_offset += BINNINGFACTOR;
       }
       if(g_samples_last_bin_count>0){
         bubbleSort(p_pixels_in_frame+row_offset+last_pixel_in_row_offset, g_samples_last_bin_count);
         //insertionSort(p_raw_frame, row_offset+last_pixel_in_row_offset, g_samples_last_bin_count);
-        send_channel->buffer[binned_frames_offset+binned_rows_offset+g_full_binns_per_row_count] = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+g_full_binns_per_row_count].value = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
         // p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
       }
     }
@@ -660,14 +673,14 @@ void HSICamera::transferDMA(){
   printf("i:   src   dest\n\r");
   for (uint32_t i = 0; i < TEST_SIZE; i++){
     // if (source[i] == destin[i]) {
-    if (send_channel->buffer[i] == recieve_channel->buffer[i]) {
+    if (send_channel->buffer[i].value == recieve_channel->buffer[i].value) {
       matches++;
     }
     else {
       if (nPrinted<20) {
         nPrinted++;
         // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
-        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i], recieve_channel->buffer[i]);
+        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i].value, recieve_channel->buffer[i].value);
       }
     }
   }
@@ -697,7 +710,7 @@ void HSICamera::writeCubeToFile(){
     for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
       for(int band=0; band<g_bands_binned_per_row_count; band++){
         for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
-          column_cube[band*g_sensor_rows_count+pixel] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
+          column_cube[band*g_sensor_rows_count+pixel] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band].value;
         }
       }
       fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
@@ -707,7 +720,7 @@ void HSICamera::writeCubeToFile(){
     for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
       for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
         for(int band=0; band<g_full_binns_per_row_count; band++){
-          column_cube[pixel*g_full_binns_per_row_count+band] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
+          column_cube[pixel*g_full_binns_per_row_count+band] = send_channel->buffer[cube_row*g_binned_pixels_per_frame_count+g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band].value;
         }
       }
       fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
@@ -717,7 +730,7 @@ void HSICamera::writeCubeToFile(){
     for(int band=0; band<g_full_binns_per_row_count; band++){
       for(int rowSpatial=0; rowSpatial<g_frame_count; rowSpatial++){
         for(int pixel=0; pixel<g_cube_clumns_count; pixel++){
-          column_cube[pixel] = send_channel->buffer[rowSpatial*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band];
+          column_cube[pixel] = send_channel->buffer[rowSpatial*g_binned_pixels_per_frame_count+g_bands_binned_per_row_count*(g_sensor_rows_count-1)-g_bands_binned_per_row_count*pixel+band].value;
         }
         fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
       }

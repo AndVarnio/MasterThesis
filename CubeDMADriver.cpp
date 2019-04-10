@@ -8,7 +8,8 @@
 // #include <xil_cache.h>
 #include <unistd.h>
 #include <stdint.h>
-#define CUBEDMA_BASE 0x43c00000
+// #define CUBEDMA_BASE 0x43c00000
+#define CUBEDMA_BASE 0x40000000
 #define SR_DONE_MSK			1U
 
 static const int MM2S_control_register_addr_MMAP = 0;

@@ -14,8 +14,21 @@
 #define  DEVICE_NAME "cubedma"    ///< The device will appear at /dev/ebbchar using this value
 #define  CLASS_NAME  "dma"        ///< The device class -- this is a character device driver
 
+#pragma pack(push, 1)
+typedef struct {
+	uint32_t value0_12x1:12;
+	uint32_t value1_12x1:12;
+} uint24_t;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct {
+	uint16_t value:12;
+} uint12_t;
+#pragma pack(pop)
+
 struct dma_data {
-	uint16_t buffer[TEST_SIZE];
+	uint12_t buffer[TEST_SIZE]; //TODO Ceiling divide TEST_SIZE by two
 	unsigned int length;
 };
 

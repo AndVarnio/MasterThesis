@@ -6,9 +6,9 @@
 // #include "../DMA_kernel_module/dma_parameters.h"
 
 extern "C" {
-#include "../DMA_kernel_module/dma_parameters.h"
+#include "DMA_kernel_module/dma_parameters.h"
 }
-#include "CubeDMADriver.hpp"
+// #include "CubeDMADriver.hpp"
 
 enum cubeFormat { Bil, Bip, Bsq };
 enum cameraTriggerMode {Freerun, Swtrigger, Hwtrigger};
@@ -25,10 +25,12 @@ class HSICamera
     private:
 
       HIDS camera = 1;
-      const int RAWFRAMESCOUNT = 10;
+      
 
-      char** p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
-      int* p_frame_ID = new int[RAWFRAMESCOUNT];
+      char** p_imagesequence_camera;
+      int* p_frame_ID;
+
+
       int fd_send;
       int fd_recieve;
       char* p_raw_single_image;
@@ -42,7 +44,7 @@ class HSICamera
       int g_sensor_rows_count;
       int g_sensor_columns_count;
       int g_bands_count;
-      int g_bit_depth = 16;
+      int g_bit_depth;
 
       // Cube spec
       int g_cube_clumns_count;
@@ -55,8 +57,7 @@ class HSICamera
       cameraTriggerMode triggermode;
 
       // Binning
-      const binningMode binning_method = testBinn;
-      const int BINNINGFACTOR = 12;
+
       int g_samples_last_bin_count;
       int g_bands_binned_per_row_count;
       int g_full_binns_per_row_count;

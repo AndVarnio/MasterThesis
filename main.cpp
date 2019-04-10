@@ -5,6 +5,7 @@
 #include <stdio.h>
 // g++ test.cpp -lueye_api
 // g++ main.cpp -lueye_api `pkg-config --cflags --libs opencv`
+// /home/andreas/gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-g++ -O3 main.cpp HSICamera.cpp CubeDMADriver.cpp -fopenmp -mfpu=neon -I usr/include usr/lib/libueye_api.so.4.90
 int main(int argc, char** argv){
   HSICamera camera;
   // camera.initialize(pixelclock, resolution, exposure time, rows, columns, frames, fps, cameramode, cubeformat);
