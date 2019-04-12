@@ -23,7 +23,8 @@ typedef struct {
 
 #pragma pack(push, 1)
 typedef struct {
-	uint16_t value:12;
+	uint16_t value;
+	// uint16_t value:12;
 } uint12_t;
 #pragma pack(pop)
 

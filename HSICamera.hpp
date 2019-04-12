@@ -25,7 +25,7 @@ class HSICamera
     private:
 
       HIDS camera = 1;
-      
+
 
       char** p_imagesequence_camera;
       int* p_frame_ID;
@@ -70,7 +70,7 @@ class HSICamera
 
       void swTriggerCapture();
       void freeRunCapture();
-
+      void writeRawDataToFile(uint12_t* data, int count);
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
       void writeRawDataToFile(char**, int, int);

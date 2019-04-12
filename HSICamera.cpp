@@ -22,6 +22,9 @@
 const int RAWFRAMESCOUNT = 10;
 const binningMode binning_method = testBinn;
 const int BINNINGFACTOR = 12;
+int image_x_offset_sensor;
+int image_y_offset_sensor;
+
 ///////////////////////////////////
 
 HSICamera::HSICamera(){
@@ -108,11 +111,34 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the display mode, error code: %d\n", errorCode);
   };
 
-  UINT res = resolution;
+  // UINT res = resolution;
+  // errorCode = is_ImageFormat (camera, IMGFRMT_CMD_SET_FORMAT, &res, 4);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the resolution setup, error code: %d\n", errorCode);
+  // };
+  ///////////////////For testing
+
+  int sensor_width = 1936;
+  int sensor_height = 1216;
+
+  image_x_offset_sensor = (sensor_width-columns)/2;
+  image_y_offset_sensor = (sensor_height-rows)/2;
+
+  UINT res = 36; // Full resolution
   errorCode = is_ImageFormat (camera, IMGFRMT_CMD_SET_FORMAT, &res, 4);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with the resolution setup, error code: %d\n", errorCode);
   };
+
+  IS_RECT AOI_parameters;
+  AOI_parameters.s32X     = image_x_offset_sensor | IS_AOI_IMAGE_POS_ABSOLUTE;
+  AOI_parameters.s32Y     = image_x_offset_sensor | IS_AOI_IMAGE_POS_ABSOLUTE;
+  AOI_parameters.s32Width = columns;
+  AOI_parameters.s32Height = rows;
+
+  nRet = is_AOI( camera, IS_AOI_IMAGE_SET_AOI, (void*)&AOI_parameters, sizeof(AOI_parameters));
+
+  //////////////////////////////
 
   double expTime = exposureMs;
   errorCode = is_Exposure(camera, IS_EXPOSURE_CMD_SET_EXPOSURE, (void*)&expTime, sizeof(expTime));
@@ -130,15 +156,15 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   //   printf("Something went wrong with the subsampling, error code: %d\n", errorCode);
   // };
 
-  // errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  // };
-  //
-  // errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  // };
+  errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  };
+
+  errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  };
 
   ////////////// Allocate memory
   switch(triggermode)
@@ -156,7 +182,10 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     case Freerun:
       {
       for(int imageMemory=0; imageMemory<RAWFRAMESCOUNT; imageMemory++){
-        is_AllocImageMem(camera, g_sensor_columns_count, g_sensor_rows_count, 16, &p_imagesequence_camera[imageMemory], &p_frame_ID[imageMemory]);
+        // is_AllocImageMem(camera, g_sensor_columns_count, g_sensor_rows_count, 16, &p_imagesequence_camera[imageMemory], &p_frame_ID[imageMemory]);
+        // is_AddToSequence (camera, p_imagesequence_camera[imageMemory], p_frame_ID[imageMemory]);
+
+        is_AllocImageMem(camera, sensor_width, sensor_height, 16, &p_imagesequence_camera[imageMemory], &p_frame_ID[imageMemory]);
         is_AddToSequence (camera, p_imagesequence_camera[imageMemory], p_frame_ID[imageMemory]);
       }
 
@@ -261,8 +290,9 @@ void HSICamera::freeRunCapture(){
       break;
   }
 
-  // writeCubeToFile();
-  transferDMA();
+  writeCubeToFile();
+  // transferDMA();
+  writeRawDataToFile(send_channel->buffer, g_cube_rows_count*g_bands_binned_per_row_count*g_sensor_rows_count);
 
   printf("Freeing imageMemory\n");
   for(int imageMemory=0; imageMemory<RAWFRAMESCOUNT; imageMemory++){
@@ -277,6 +307,8 @@ void HSICamera::testBinning(){
   double totTime = 0;
   gettimeofday(&tv1, NULL);
   ////////////////////
+  int image_pos_offset_first_row = image_y_offset_sensor * image_x_offset_sensor;
+  int image_pos_offset_next_row = 0;
 
   char* p_raw_frame;
   INT imagesequence_id = 0;
@@ -318,8 +350,11 @@ void HSICamera::testBinning(){
     // Copy values to 16 bit array
     uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
     for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+      // p_pixels_in_frame[i] = uint16_t(p_raw_frame[image_x_offset_sensor+i*2]) << 8 | p_raw_frame[image_x_offset_sensor+i*2+1] ;
+      p_pixels_in_frame[i] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+i*2]) << 8 | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+i*2+1] ;
     }
+    image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
+
     int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
 
     gettimeofday(&tv1, NULL);
@@ -335,8 +370,8 @@ void HSICamera::testBinning(){
 // Er det et fast antall sampler i spektral direction?
 
         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
-        std::sort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
-        // bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
+        // std::sort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
+        bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, 12);
         // bitonicMerge6(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number].value = p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
@@ -652,13 +687,16 @@ void HSICamera::transferDMA(){
 		printf("ERROR: MM2S transfer timed out!\n\r");
 	}
 
-  err = ERR_TIMEOUT;
-	for (time = 0; time < TIMEOUT; time++) {
-		if (cdma.cubedma_TransferDone(S2MM)) {
-			err = SUCCESS;
-			break;
-		}
-	}
+  // err = ERR_TIMEOUT;
+	// for (time = 0; time < TIMEOUT; time++) {
+	// 	if (cdma.cubedma_TransferDone(S2MM)) {
+	// 		err = SUCCESS;
+	// 		break;
+	// 	}
+	// }
+  while(!cdma.cubedma_TransferDone(S2MM)){
+
+  }
 	if (err != SUCCESS) {
 		printf("ERROR: S2MM transfer timed out!\n\r");
 	}
@@ -782,6 +820,34 @@ void HSICamera::writeRawDataToFile(uint16_t** data, int rows_count, int columns_
   fclose (fp);
 }
 
+void HSICamera::writeRawDataToFile(uint12_t* data, int count){
+  //Name file
+  struct timespec time_system;
+  clock_gettime(CLOCK_REALTIME, &time_system);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
+  char file_path[64];
+  strcpy(file_path, "/home/root/capture/");
+  strcat(file_path, timeSystemString);
+  strcat(file_path, "rawSensorData.raw");
+
+  //Write
+  FILE * fp;
+  fp = fopen (file_path,"wb");
+  if (fp==NULL) {fputs ("File error\n",stderr); exit (1);}
+  // printf("Writing to file\n" );
+  printf("Writing to file: sizeof(uint12_t)=%d count=%d \n", sizeof(uint12_t), count );
+  // for(int i=0; i<count; i++){
+    fwrite (data, sizeof(uint12_t), count, fp);//TODO g_bit_depth
+  // }
+  // fclose (fp);
+
+  // char buffer[] = { 'x' , 'y' , 'z' };
+  // printf("Writing to file: sizeof(char)=%d sizeof(buffer)=%d \n", sizeof(char), sizeof(buffer) );
+  // fwrite (buffer , sizeof(char), sizeof(buffer), fp);
+  fclose (fp);
+
+}
 
 void HSICamera::captureSingleImage(){
   is_FreezeVideo(camera, IS_WAIT);
