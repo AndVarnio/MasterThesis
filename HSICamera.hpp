@@ -81,6 +81,7 @@ class HSICamera
       void testBinning();
       void writeCubeToFile();
       void transferDMA();
+      
       // Binning
       int random_partition(unsigned char* arr, int start, int end);
       int random_selection(unsigned char* arr, int start, int end, int k);

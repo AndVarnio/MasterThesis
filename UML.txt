@@ -1,0 +1,56 @@
+@startuml
+class CubeDMADriver {
+
+ #cubedma_init_t
+ #transfer_t
+ #cubedma_error_t
+
+ +cubedma_Init()
+ +cubedma_StartTransfer()
+ +cubedma_ReadInterrupts()
+ +cubedma_TransferDone()
+ +cubedma_ClearInterrupts()
+ +cubedma_get_received_length()
+}
+
+HSICamera --> CubeDMADriver
+
+class HSICamera
+{
+
+ +initialize()
+ +runCubeCapture()
+ +captureSingleImage()
+
+ ~transferDMA()
+ ~writeCubeToFile()
+ ~bitonicMerge12()
+
+}
+
+
+HSICamera --> DMAMemoryManager
+HSICamera --> SharedMemParams
+DMAMemoryManager --> SharedMemParams
+
+class SharedMemParams << (F,#FF7700) Variables >>
+{
+ #uint24_t
+ #TEST_SIZE
+ #SEND_PHYS_ADDR
+ #RECIEVE_PHYS_ADDR
+ #dma_data
+}
+
+class DMAMemoryManager {
+
+ #device_data
+ #fops
+
+ +module_init()
+ +module_exit()
+ +open()
+ +mmap()
+ +unlocked_ioctl()
+}
+@enduml

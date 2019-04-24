@@ -6,9 +6,9 @@
 #include <omp.h>
 #include <iostream>
 // g++ readBIL.cpp -o readBILCube `pkg-config --cflags --libs opencv`
-int columns = 1024;
-int bands = 85;
-int rows = 1500;
+int columns = 720;
+int bands = 106;
+int rows = 500;
 
 uint16_t* buffer;
 uint16_t** waveLengths;
@@ -34,7 +34,10 @@ int main(int argc, char* argv[])
     if (pFile==NULL) {fputs ("File error\n",stderr); exit (1);}
 
     size_t result = fread (buffer, 2, SIZEINPUTFILE, pFile);
-    if (result != SIZEINPUTFILE) {fputs ("Reading error",stderr); exit (3);}
+    if (result != SIZEINPUTFILE) {
+      printf("Read %d, SIZEINPUTFILE=%d\n", result, SIZEINPUTFILE);
+      fputs ("Reading error\n",stderr);
+      exit (3);}
 
     #pragma omp parallel for num_threads(4)
     for(int band=0; band<bands; band++){

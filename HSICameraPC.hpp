@@ -298,14 +298,24 @@ void HSICamera::freeRunCapture(){
     }
   }
   else if(cube_type==Bip){//BIP
+    // for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
+    //   for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
+    //     for(int band=0; band<g_full_binns_per_row_count; band++){
+    //       column_cube[pixel*g_full_binns_per_row_count+band] = p_binned_frames[cube_row][g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
+    //     }
+    //   }
+    //   fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
+    // }
+
     for(int cube_row=0; cube_row<g_cube_rows_count; cube_row++){
-      for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
-        for(int band=0; band<g_full_binns_per_row_count; band++){
-          column_cube[pixel*g_full_binns_per_row_count+band] = p_binned_frames[cube_row][g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
-        }
-      }
-      fwrite (column_cube, sizeof(uint16_t), g_sensor_rows_count*g_full_binns_per_row_count, p_file_cube);
+      // for(int pixel=0; pixel<g_sensor_rows_count; pixel++){
+      //   for(int band=0; band<g_full_binns_per_row_count; band++){
+      //     column_cube[pixel*g_full_binns_per_row_count+band] = p_binned_frames[cube_row][g_full_binns_per_row_count*(g_sensor_rows_count-1)-g_full_binns_per_row_count*pixel+band];
+      //   }
+      // }
+      fwrite (p_binned_frames[cube_row], sizeof(uint16_t), g_sensor_rows_count*g_bands_binned_per_row_count, p_file_cube);
     }
+
   }
   else{//BSQ
     for(int band=0; band<g_full_binns_per_row_count; band++){
@@ -531,12 +541,12 @@ void HSICamera::captureMeanBinning(){
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+3];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+4];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+5];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
 
         p_binned_frames[image_number][binned_frames_offset+bin_number] = (uint16_t)(tot_pixel_val/BINNINGFACTOR);
 

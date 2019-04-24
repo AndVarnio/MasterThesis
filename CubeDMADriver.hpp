@@ -66,6 +66,7 @@ class CubeDMADriver{
 		cubedma_interrupt_t cubedma_ReadInterrupts(transfer_t transfer);
 		bool cubedma_TransferDone(transfer_t transfer);
 		void cubedma_ClearInterrupts();
+		int get_received_length();
 	private:
 		void printBits(size_t const size, void const * const ptr);
 };

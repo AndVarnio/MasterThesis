@@ -208,3 +208,7 @@ bool CubeDMADriver::cubedma_TransferDone(transfer_t transfer){
 	}
 	return false;
 }
+
+int CubeDMADriver::get_received_length(){
+	return deviceMem[S2MM_recieved_length_register_addr_MMAP];
+}

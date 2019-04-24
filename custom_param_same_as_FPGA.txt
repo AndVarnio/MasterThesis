@@ -1,0 +1,39 @@
+#! Sample entroy coder with full prediction mode and neighbor oriented mode
+
+# ENCODING ORDER 1 = BSQ, 0 = BI
+SAMPLE_ENCODING_ORDER=0
+
+# SUBFRAME INTERLEAVING DEPTH USED IN BI ENCODING 16 bits
+SUBFRAME_INTERLEAVING_DEPTH=107
+
+# INTEGER NUMBER OF OUTPUT WORDS 3 bits
+OUTPUT_WORD_SIZE=8
+
+####################################################
+####Same as FPGA parameters
+####################################################
+LOCAL_SUM_MODE=1
+
+RESCALING_COUNTER_SIZE=6
+
+INITIAL_COUNT_EXPONENT=1
+
+ACCUMULATOR_INITIALIZATION_CONSTANT=3
+
+WEIGHT_COMPONENT_RESOLUTION=19
+
+NUMBER_PREDICTION_BANDS=3
+
+REGISTER_SIZE=64
+
+PREDICTION_MODE=0
+
+WEIGHT_UPDATE_SECI=4
+
+UNARY_LENGTH_LIMIT=9
+
+WEIGHT_UPDATE_SEFP=9
+
+WEIGHT_UPDATE_SE=-6
+#############################################
+

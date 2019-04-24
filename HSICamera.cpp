@@ -132,7 +132,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
 
   IS_RECT AOI_parameters;
   AOI_parameters.s32X     = image_x_offset_sensor | IS_AOI_IMAGE_POS_ABSOLUTE;
-  AOI_parameters.s32Y     = image_x_offset_sensor | IS_AOI_IMAGE_POS_ABSOLUTE;
+  AOI_parameters.s32Y     = image_y_offset_sensor | IS_AOI_IMAGE_POS_ABSOLUTE;
   AOI_parameters.s32Width = columns;
   AOI_parameters.s32Height = rows;
 
@@ -146,6 +146,7 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
     printf("Something went wrong with the exposure time, error code: %d\n", errorCode);
   };
 
+
   errorCode = is_SetColorMode(camera, IS_CM_MONO12);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with the color mode, error code: %d\n", errorCode);
@@ -156,15 +157,15 @@ void HSICamera::initialize(int pixelClockMHz, int resolution, double exposureMs,
   //   printf("Something went wrong with the subsampling, error code: %d\n", errorCode);
   // };
 
-  errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  };
-
-  errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  };
+  // errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  // };
+  //
+  // errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  // };
 
   ////////////// Allocate memory
   switch(triggermode)
@@ -290,9 +291,9 @@ void HSICamera::freeRunCapture(){
       break;
   }
 
-  writeCubeToFile();
+  // writeCubeToFile();
   // transferDMA();
-  writeRawDataToFile(send_channel->buffer, g_cube_rows_count*g_bands_binned_per_row_count*g_sensor_rows_count);
+  // writeRawDataToFile(send_channel->buffer, g_cube_rows_count*g_bands_binned_per_row_count*g_sensor_rows_count);
 
   printf("Freeing imageMemory\n");
   for(int imageMemory=0; imageMemory<RAWFRAMESCOUNT; imageMemory++){
@@ -307,8 +308,7 @@ void HSICamera::testBinning(){
   double totTime = 0;
   gettimeofday(&tv1, NULL);
   ////////////////////
-  int image_pos_offset_first_row = image_y_offset_sensor * image_x_offset_sensor;
-  int image_pos_offset_next_row = 0;
+
 
   char* p_raw_frame;
   INT imagesequence_id = 0;
@@ -348,14 +348,28 @@ void HSICamera::testBinning(){
     // totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
     // gettimeofday(&tv1, NULL);
     // Copy values to 16 bit array
-    uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
-    for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      // p_pixels_in_frame[i] = uint16_t(p_raw_frame[image_x_offset_sensor+i*2]) << 8 | p_raw_frame[image_x_offset_sensor+i*2+1] ;
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+i*2]) << 8 | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+i*2+1] ;
-    }
-    image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
 
-    int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
+    int sensor_columns_count = 1936;
+    int image_pos_offset_first_row = image_y_offset_sensor * sensor_columns_count * 2 + image_x_offset_sensor * 2;
+    int image_pos_offset_next_row = 0;
+
+    uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
+    for(int image_row=0; image_row<g_sensor_rows_count; image_row++){
+      for(int image_pixel=0; image_pixel<g_sensor_columns_count; image_pixel++){
+        // printf("image_row: %d\n", image_row);
+        p_pixels_in_frame[image_row*g_sensor_columns_count+image_pixel] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2]) << 8
+        | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2+1];
+      }
+      image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
+    }
+
+    // uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
+    // for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
+    //   p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+    // }
+
+    // printf("%u %u-%u\n", *(p_pixels_in_frame+460800), (unsigned char)p_raw_frame[0+460800], (unsigned char)p_raw_frame[1+460800]);
+    // int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
 
     gettimeofday(&tv1, NULL);
     // Binn image

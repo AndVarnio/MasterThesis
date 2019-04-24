@@ -6,7 +6,7 @@
 #include <iostream>
 // g++ readBIL.cpp -o readBILCube `pkg-config --cflags --libs opencv`
 int columns = 720;
-int bands = 106;
+int bands = 107;
 int rows = 500;
 
 uint16_t* buffer;
@@ -37,14 +37,22 @@ int main(int argc, char* argv[])
   }
 
 
-    // #pragma omp parallel for num_threads(4)
-    for(int band=0; band<bands; band++){
-      for(int row=0; row<rows; row++){
-        for(int column=0; column<columns; column++){
-          waveLengths[band][row*columns+column] = buffer[band+row*bands*column+column*bands];
-        }
+  for(int band=0; band<bands; band++){
+    for(int row=0; row<rows; row++){
+      for(int column=0; column<columns; column++){
+        waveLengths[band][row*columns+column] = buffer[band+row*bands*columns+column*bands];
       }
     }
+  }
+
+    // #pragma omp parallel for num_threads(4)
+    // for(int band=0; band<bands; band++){
+    //   for(int row=0; row<rows; row++){
+    //     for(int column=0; column<columns; column++){
+    //       waveLengths[band][row*columns+column] = buffer[band+row*bands*column+column*bands];
+    //     }
+    //   }
+    // }
 
     // for(int band=0; band<bands; band++){
     //   for(int row=0; row<rows; row++){
@@ -65,7 +73,7 @@ int main(int argc, char* argv[])
       for(int band=0; band<bands; band++){
 
         std::string filename = "./" +folderName+".Images" + "/" + std::to_string(band) + ".png";
-        cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_8UC1, waveLengths[band]);
+        cv::Mat grayScaleMat = cv::Mat(rows, columns, CV_16UC1, waveLengths[band]);
         imwrite(filename,grayScaleMat);
       }
 
@@ -74,9 +82,9 @@ int main(int argc, char* argv[])
       std::vector<cv::Mat> rgbChannels;
 
 
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[22]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[30]));
-          rgbChannels.push_back(cv::Mat(rows, columns, CV_8UC1, waveLengths[45]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_16UC1, waveLengths[22]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_16UC1, waveLengths[30]));
+          rgbChannels.push_back(cv::Mat(rows, columns, CV_16UC1, waveLengths[45]));
 
           cv::Mat rgbImage;
           cv::merge(rgbChannels, rgbImage);
