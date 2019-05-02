@@ -30,7 +30,7 @@ int image_y_offset_sensor;
 HSICamera::HSICamera(){
   // camera = 1;
   is_SetErrorReport (camera, IS_ENABLE_ERR_REP);
-  INT success = x|is_InitCamera(&camera, NULL);
+  INT success = is_InitCamera(&camera, NULL);
   if(success!=IS_SUCCESS){
     printf("Failed to initialize camera!, error message: %i\n", success);
     exit (EXIT_FAILURE);
