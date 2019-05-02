@@ -214,15 +214,67 @@ Connect a cable with a 8-pin Hirose jack HR25 connector to the camera,
 Pin 1 is ground and pin 8 is 12-24V DC.
 Connect the PC, Zedboard/Picozed and camera to the same network with Cat cables.
 
-## Camera firmware
+## Install driver
+### Camera firmware
 The firmware on ueye GigE cameras has to be the same version as the driver version for them to work together. The only way to upload the firmware to the camera is with a program called Ids camera manager, this program needs a GUI operating system to open. The OS built for both the Zedboard and Picozed doesn't have GUI's. The solution for this is to upload the firmware from a Ubuntu PC that runs the same version of the driver as the embedded system. As of now, the latest version available for Embedded Linux is 4.90.6 and 4.91.1 for Linux. Therefore an older version for Linux is needed, all versions are available at  [https://en.ids-imaging.com/ueye-software-archive.html](https://en.ids-imaging.com/ueye-software-archive.html)
 
-## For PC
+### For PC
 Download and extract version 4.90.06 for your PC. Run `sh ./ueyesdk-setup-4.90.06-eth-amd64.gz.run`, for setting up Ethernet driver and `sh ./ueyesdk-setup-4.90.06-usb-amd64.gz.run`, for setting up USB driver. Then run `/etc/init.d/ueyeethdrc start`, for starting the Ethernet driver and `/etc/init.d/ueyeusbdrc start` for starting the USB driver. The USB driver is only needed here if a USB camera is going to be used as well.
 
-Open IDS Camera Manager, by typing `idscameramanager` in a terminal window. Push Manual ETH configuration button, this is to set a static IP address for the camera. Fill in a suitable IP address and set the subnet mask to 255.255.255.0. Push the Upload starter firmware button, when it's finished uploading the right firmware is uploaded to the camera,  and you can quit the manager.
+Open IDS Camera Manager, by typing `idscameramanager` in a terminal window. Push Manual ETH configuration button, this is to set a static IP address for the camera. Fill in a suitable IP address and set the subnet mask to 255.255.255.0. Push the Upload starter firmware button, when it's finished uploading the right firmware is uploaded to the camera,  and you can quit the manager.  
 
-## For Embedded system
-Download the embedded hard float driver, version 4.90.06. Extract the zip file in Embedded Linux's root folder in the root file system.  Run `/usr/local/share/ueye/bin/ueyesdk-setup.sh`, then run `/etc/init.d/ueyeethdrc start` to start the Ethernet driver and run `/etc/init.d/ueyeusbdrc start` start the USB driver.  If the camera is visible when runing `ueyesetip`, everything should be set up successfully.
+### For Embedded system
+Download the embedded hard float driver, version 4.90.06. Extract the zip file in Embedded Linux's root folder in the root file system.  Run the setup script, then run the executable driver to start the driver.  
+```
+/usr/local/share/ueye/bin/ueyesdk-setup.sh
+/etc/init.d/ueyeethdrc start
+```
+And run the executable for USB, if that is needed.   `/etc/init.d/ueyeusbdrc start`  
+If the camera is visible when runing `ueyesetip`, everything should be set up successfully.
+
+## Compile kernel module
+
+### Download the tools
+First download the Linux kernel source from [https://mirrors.edge.kernel.org/pub/linux/kernel/](https://mirrors.edge.kernel.org/pub/linux/kernel/). This has to be the right version, to check what version is running on the board, run `uname -r`.
+
+A toolchain is needed to compile with, one can be found on [https://releases.linaro.org/components/toolchain/binaries/](https://releases.linaro.org/components/toolchain/binaries/). In this project version 7.3-2018.05 and arm-linux-gnueabihf have been used. Navigate to 7.3-2018.05 --> arm-linux-gnueabihf, download gcc-linaro-7.3.1-2018.05-i686_arm-linux-gnueabihf.tar.xz  and unpack it to use this.
+
+### Build kernel
+To build the kernel, the kernel config file is needed, this can be found in the /proc folder, copy this from the board.
+```
+scp root@xxx.xxx.xxx.xxx:/proc/config.gz ./
+```
+Unpack the file and navigate to the downloaded kernel source, then copy the config file to the same location. You may have to delete the existing config file first. Now the build the kernel.
+```
+cp <CONFIG_FILE> .config
+make ARCH=arm CROSS_COMPILE=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf- oldconfig
+make ARCH=arm CROSS_COMPILE=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-
+```
+### Make kernel module
+Navigate to DMA_kernel_module in the project folder, from there run.
+```
+make KERNEL=<LINUX_SOURCE_DIR> CROSS=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-
+```
+Then copy char_device.ko to the board.
+```
+scp char_device.ko root@xxx.xxx.xxx.xxx:/home/root
+```
+
+## Compile camera program
+Navigate to the main folder and compile the camera program, the downloaded toolchain can be used to compile with.
+```
+<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-g++ -O3 main.cpp HSICamera.cpp CubeDMADriver.cpp -o cubeCapture -fopenmp -mfpu=neon -I usr/include usr/lib/libueye_api.so.4.90
+```
+Copy the executable to the board.
+```
+scp cubeCapture root@xxx.xxx.xxx.xxx:/home/root
+```
+
+## Run on board
+Insert the module into the kernel.
+```
+insmod char_driver.ko
+```
+Run camera program
 
 > Written with [StackEdit](https://stackedit.io/).
