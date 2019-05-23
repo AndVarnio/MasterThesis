@@ -4,23 +4,20 @@
 #include <asm/cacheflush.h>
 #include <asm/outercache.h>
 #include <linux/ioctl.h>
-// #include <linux/init.h>           // Macros used to mark up functions e.g. __init __exit
 #include <linux/module.h>         // Core header for loading LKMs into the kernel
 #include <linux/device.h>         // Header to support the kernel Driver Model
-// #include <linux/kernel.h>         // Contains types, macros, functions for the kernel
-// #include <linux/fs.h>             // Header for the Linux file system support
-// #include <linux/uaccess.h>          // Required for the copy to user function
+
 #include "dma_parameters.h"
 
 
 
 struct device_data{
-	int    major_number;                  ///< Stores the device number -- determined automatically
-	char   message[256];           ///< Memory for the string that is passed from userspace
-	short  size_of_message;              ///< Used to remember the size of the string stored
-	int    numberOpens;              ///< Counts the number of times the device is opened
-	struct class*  p_device_class; ///< The device-driver class struct pointer
-	struct device* p_device; ///< The device-driver device struct pointer
+	int    major_number;           	///< Stores the device number -- determined automatically
+	char   message[256];           	///< Memory for the string that is passed from userspace
+	short  size_of_message;					///< Used to remember the size of the string stored
+	int    numberOpens;            	///< Counts the number of times the device is opened
+	struct class*  p_device_class; 	///< The device-driver class struct pointer
+	struct device* p_device; 				///< The device-driver device struct pointer
 	struct cdev cdev;
 	struct dma_data *p_dma_data;
 };
@@ -39,7 +36,7 @@ static int dev_mmap(struct file *file_p, struct vm_area_struct *vma){
 	if(imajor(inode)==dma_channel[0].major_number){//send
 		remap_pfn_range(vma, vma->vm_start, SEND_PHYS_ADDR>>PAGE_SHIFT, vma->vm_end-vma->vm_start, vma->vm_page_prot);
 	}
-	else{//reieve
+	else{//recieve
 		remap_pfn_range(vma, vma->vm_start, RECIEVE_PHYS_ADDR>>PAGE_SHIFT, vma->vm_end-vma->vm_start, vma->vm_page_prot);
 	}
 	return 0;
@@ -112,18 +109,9 @@ static int __init init_channel(struct device_data *dma_chan, char *name){
 	// Map memory to kernel space
 	if(strcmp(name, "send")==0){
 		dma_chan->p_dma_data = (struct dma_data *)memremap(SEND_PHYS_ADDR, sizeof(struct dma_data), MEMREMAP_WB);
-		// printk(KERN_INFO"Actual phys: 0x%08X\n", virt_to_phys((void *)dma_chan->p_dma_data)>>PAGE_SHIFT);
-		// uint32_t i;
-		// for (i = 0; i < TEST_SIZE; i++) {
-		// 	dma_chan->p_dma_data->buffer[i] = (uint8_t)i;
-		// }
 	}
 	else{
 		dma_chan->p_dma_data = (struct dma_data *)memremap(RECIEVE_PHYS_ADDR, sizeof(struct dma_data), MEMREMAP_WB);
-		// uint32_t i;
-		// for (i = 0; i < TEST_SIZE; i++) {
-		// 	dma_chan->p_dma_data->buffer[i] = 0xF;
-		// }
 	}
 
 	if(dma_chan->p_dma_data==NULL){
@@ -153,7 +141,6 @@ static int __init ebbchar_init(void){
 }
 
 // Cleanup
-// TODO clean up evertyhing
 static void __exit ebbchar_exit(void){
   device_destroy(dma_channel[0].p_device_class, MKDEV(dma_channel[0].major_number, 0));     // remove the device
   class_unregister(dma_channel[0].p_device_class);                          // unregister the device class
@@ -169,16 +156,9 @@ static void __exit ebbchar_exit(void){
   printk(KERN_INFO "EBBChar: Goodbye from the LKM!\n");
 }
 
-/** @brief The device open function that is called each time the device is opened
-*  This will only increment the numberOpens counter in this case.
-*  @param inodep A pointer to an inode object (defined in linux/fs.h)
-*  @param filep A pointer to a file object (defined in linux/fs.h)
-*/
 static int dev_open(struct inode *inodep, struct file *filep){
-  // numberOpens++;
-
-	printk(KERN_INFO "iminor=%d\n", iminor(inodep));
-	printk(KERN_INFO "iminor=%d\n", imajor(inodep));
+	// printk(KERN_INFO "iminor=%d\n", iminor(inodep));
+	// printk(KERN_INFO "iminor=%d\n", imajor(inodep));
 	filep->private_data = inodep;
 	return 0;
 }

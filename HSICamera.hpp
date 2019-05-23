@@ -10,7 +10,7 @@ extern "C" {
 }
 // #include "CubeDMADriver.hpp"
 
-enum cubeFormat { Bil, Bip, Bsq };
+enum cubeFormat { Bil, Bip, Bsq, Raw, None };
 enum cameraTriggerMode {Freerun, Swtrigger, Hwtrigger};
 enum binningMode {simdMedian, simdMean, normalMean, testBinn};
 
@@ -18,7 +18,7 @@ class HSICamera
 {
     public:
       HSICamera();
-      void initialize(int pixelClockMHz, int resolution, double exposureMs, int rows, int columns, int frames, double fps, cameraTriggerMode cameraMode, cubeFormat cube);
+      void initialize(double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube);
       void runCubeCapture();
       void captureSingleImage();
 
@@ -71,28 +71,28 @@ class HSICamera
       void swTriggerCapture();
       void freeRunCapture();
       void writeRawDataToFile(uint12_t* data, int count);
+      void writeRawDataToFile(void* data, int size_samples, int count_samples);
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
-      void writeRawDataToFile(char**, int, int);
-      void writeRawDataToFile(uint16_t**, int, int);
       void captureSIMDMedianBinning();
       void captureMeanBinning();
       void captureSIMDMeanBinning();
       void testBinning();
       void writeCubeToFile();
       void transferDMA();
-      
+
+      const int RAWFRAMESCOUNT = 10;
+      const binningMode binning_method = testBinn;
+      const int BINNINGFACTOR = 12;
+      int image_x_offset_sensor;
+      int image_y_offset_sensor;
+
       // Binning
-      int random_partition(unsigned char* arr, int start, int end);
-      int random_selection(unsigned char* arr, int start, int end, int k);
-      void insertionSort(uint16_t* arr, int startPosition, int n);
-      void swap(unsigned char* a, unsigned char* b);
-      int partition (unsigned char arr[], int low, int high);
-      void quickSort(unsigned char arr[], int low, int high);
-      void bubbleSort(uint16_t arr[], int n);
-      void swap(uint16_t *xp, uint16_t *yp);
       void bitonicMerge12(uint16_t* arr);
       void bitonicMerge6(uint16_t* arr);
+
+      void swap(uint16_t *xp, uint16_t *yp);
+      void bubbleSort(uint16_t arr[], int n);
 };
 
 

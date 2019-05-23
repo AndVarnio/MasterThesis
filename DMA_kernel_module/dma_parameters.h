@@ -8,18 +8,12 @@
 #ifndef DMA_PARAMETERS_H_
 #define DMA_PARAMETERS_H_
 
-#define TEST_SIZE (500 * 720 * 107)
+#define CUBE_SIZE (500 * 720 * 107)
 #define SEND_PHYS_ADDR 0x09000000
 #define RECIEVE_PHYS_ADDR 0x0ffff000
-#define  DEVICE_NAME "cubedma"    ///< The device will appear at /dev/ebbchar using this value
-#define  CLASS_NAME  "dma"        ///< The device class -- this is a character device driver
+#define DEVICE_NAME "cubedma"    ///< The device will appear at /dev/ebbchar using this value
+#define CLASS_NAME  "dma"        ///< The device class -- this is a character device driver
 
-#pragma pack(push, 1)
-typedef struct {
-	uint32_t value0_12x1:12;
-	uint32_t value1_12x1:12;
-} uint24_t;
-#pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct {
@@ -29,7 +23,7 @@ typedef struct {
 #pragma pack(pop)
 
 struct dma_data {
-	uint12_t buffer[TEST_SIZE]; //TODO Ceiling divide TEST_SIZE by two
+	uint12_t buffer[CUBE_SIZE]; //TODO Ceiling divide TEST_SIZE by two
 	unsigned int length;
 };
 

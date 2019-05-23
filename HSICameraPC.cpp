@@ -4,20 +4,28 @@
 #include <stdlib.h>
 #include<time.h>
 #include <sys/time.h>
-#include <arm_neon.h>
+// #include <arm_neon.h>
 #include <algorithm>
 
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include "CubeDMADriver.hpp"
+// #include "CubeDMADriver.hpp"
 #include "HSICamera.hpp"
-#include <sys/ioctl.h>
+// #include <sys/ioctl.h>
 
 #include <byteswap.h>
 ////////////////For debug
 #define TIMEOUT 0xFFFFFF
-// #define CUBE_SIZE (500 * 720 * 107)
+
+
+
+const int RAWFRAMESCOUNT = 10;
+const binningMode binning_method = testBinn;
+const int BINNINGFACTOR = 12;
+int image_x_offset_sensor;
+int image_y_offset_sensor;
+
 ///////////////////////////////////
 
 HSICamera::HSICamera(){
@@ -73,28 +81,40 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   }
 
   ////////////////////Initialize///////////////////
-  // Set pixel clock
-  UINT pixel_clock_range[3];
-  int errorCode;
 
-  errorCode = is_PixelClock(camera, IS_PIXELCLOCK_CMD_GET_RANGE, (void*)pixel_clock_range, sizeof(pixel_clock_range));
-  if (errorCode == IS_SUCCESS){
-    printf("min: %d max: %d intervall: %d\n", pixel_clock_range[0], pixel_clock_range[1], pixel_clock_range[2]);
-    int errorCode = is_PixelClock(camera, IS_PIXELCLOCK_CMD_SET, (void*)&pixel_clock_range[1], sizeof(pixel_clock_range[1]));
+
+  //////////////////////// Get actual pixel clock range and fps for debugging
+
+
+    UINT nRange[3];
+    // ZeroMemory(nRange, sizeof(nRange));
+    INT nRet = is_PixelClock(camera, IS_PIXELCLOCK_CMD_GET_RANGE, (void*)nRange, sizeof(nRange));
+
+    if (nRet == IS_SUCCESS){
+      printf("min: %d max: %d intervall: %d\n", nRange[0], nRange[1], nRange[2]);
+    }
+
+    int errorCode = is_PixelClock(camera, IS_PIXELCLOCK_CMD_SET,
+                          (void*)&nRange[1],
+                          sizeof(nRange[1]));
     if(errorCode!=IS_SUCCESS){
-      printf("Something went wrong with setting pixel clock, error code: %d\n", errorCode);
+      printf("Something went wrong with the pixel clock, error code: %d\n", errorCode);
     };
-  }
-  else{
-    printf("Something went wrong with getting pixel clock range, error code: %d\n", errorCode);
-  }
+
+  ////////////////////////
 
   errorCode = is_SetDisplayMode(camera, IS_SET_DM_DIB);
   if(errorCode!=IS_SUCCESS){
     printf("Something went wrong with the display mode, error code: %d\n", errorCode);
   };
 
-  // Set AOI
+  // UINT res = resolution;
+  // errorCode = is_ImageFormat (camera, IMGFRMT_CMD_SET_FORMAT, &res, 4);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with the resolution setup, error code: %d\n", errorCode);
+  // };
+  ///////////////////For testing
+
   int sensor_width = 1936;
   int sensor_height = 1216;
 
@@ -113,11 +133,9 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   AOI_parameters.s32Width = columns;
   AOI_parameters.s32Height = rows;
 
-  errorCode = is_AOI( camera, IS_AOI_IMAGE_SET_AOI, (void*)&AOI_parameters, sizeof(AOI_parameters));
-  if(errorCode!=IS_SUCCESS){
-    printf("Something went wrong with the display mode, error code: %d\n", errorCode);
-  };
+  nRet = is_AOI( camera, IS_AOI_IMAGE_SET_AOI, (void*)&AOI_parameters, sizeof(AOI_parameters));
 
+  //////////////////////////////
 
   double expTime = exposureMs;
   errorCode = is_Exposure(camera, IS_EXPOSURE_CMD_SET_EXPOSURE, (void*)&expTime, sizeof(expTime));
@@ -192,25 +210,28 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   }
 
   ////Get pointer to DMA memory
-  fd_send = open("/dev/cubedmasend", O_RDWR);
-  if (fd_send < 1) {
-    printf("Unable to open send channel");
-  }
+  // fd_send = open("/dev/cubedmasend", O_RDWR);
+  // if (fd_send < 1) {
+  //   printf("Unable to open send channel");
+  // }
+  //
+  // fd_recieve = open("/dev/cubedmarecieve", O_RDWR);
+  // if (fd_recieve < 1) {
+  //   printf("Unable to open receive channel");
+  // }
+  //
+  // send_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
+  //                 PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
+  //
+  // recieve_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
+  //                 PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
+  //
+  // if ((send_channel == MAP_FAILED) || (recieve_channel == MAP_FAILED)) {
+  //   printf("Failed to mmap\n");
+  // }
 
-  fd_recieve = open("/dev/cubedmarecieve", O_RDWR);
-  if (fd_recieve < 1) {
-    printf("Unable to open receive channel");
-  }
-
-  send_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
-                  PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
-
-  recieve_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
-                  PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
-
-  if ((send_channel == MAP_FAILED) || (recieve_channel == MAP_FAILED)) {
-    printf("Failed to mmap\n");
-  }
+  send_channel = new struct dma_data;
+  recieve_channel = new struct dma_data;
 }
 
 
@@ -218,7 +239,7 @@ void HSICamera::runCubeCapture(){
   switch(triggermode)
   {
     case Swtrigger:
-      swTriggerCapture();// TODO remove sw trigger mode
+      swTriggerCapture();
       break;
     case Hwtrigger:
     case Freerun:
@@ -247,7 +268,7 @@ void HSICamera::freeRunCapture(){
   is_GetFramesPerSecond (camera, &dblFPS);
   printf("Actual framerate: %f\n", dblFPS);
 
-  for (uint32_t i = 0; i < CUBE_SIZE; i++) {
+  for (uint32_t i = 0; i < TEST_SIZE; i++) {
     recieve_channel->buffer[i].value = 0xFF;
 	}
   ///////////////////////////
@@ -278,6 +299,8 @@ void HSICamera::freeRunCapture(){
   // writeRawDataToFile(send_channel->buffer, g_cube_rows_count*g_bands_binned_per_row_count*g_sensor_rows_count);
 
   printf("Freeing imageMemory\n");
+
+
   for(int imageMemory=0; imageMemory<RAWFRAMESCOUNT; imageMemory++){
     printf("Freeing: %d\n", imageMemory);
     is_UnlockSeqBuf (camera, p_frame_ID[imageMemory], p_imagesequence_camera[imageMemory]);
@@ -373,7 +396,7 @@ void HSICamera::testBinning(){
 // Er det et fast antall sampler i spektral direction?
 
         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
-        // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
+        // std::sort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
         bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, 12);
         // bitonicMerge6(p_pixels_in_frame+row_and_bin_offset_raw_frame);
@@ -464,99 +487,99 @@ void HSICamera::captureSIMDMedianBinning(){
 
 void HSICamera::captureSIMDMeanBinning(){
   ////////For debugging
-  struct timeval  tv1, tv2, tv3, tv4;
-  gettimeofday(&tv1, NULL);
-  double totTime = 0;
-  ////////////////////
-  uint16_t newArr1[BINNINGFACTOR];
-  uint16_t newArr2[BINNINGFACTOR];
-  uint16_t newArr3[BINNINGFACTOR];
-  uint16_t newArr4[BINNINGFACTOR];
-
-  char* p_raw_frame;
-  int imagesequence_id = 0;
-  int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
-
-  for(int image_number=0; image_number<g_frame_count; image_number++){
-    // gettimeofday(&tv1, NULL);
-    int errorCode;
-    do{
-      errorCode = is_WaitForNextImage(camera, 1000, &(p_raw_frame), &imagesequence_id);
-
-      if(errorCode!=IS_SUCCESS){
-        is_UnlockSeqBuf (camera, 1, p_raw_frame);
-        printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
-      }
-    }while(errorCode!=IS_SUCCESS);
-
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    gettimeofday(&tv1, NULL);
-    // Copy values to 16 bit array
-    uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
-    for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
-    }
-
-    gettimeofday(&tv1, NULL);
-    // Binn image
-    #pragma omp parallel for num_threads(2)
-    for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
-      int row_offset = sensor_row*g_sensor_columns_count;
-      int binned_rows_offset = sensor_row*g_bands_binned_per_row_count;
-
-      int bin_offset = 0;
-      for(int bin_number=0; bin_number<g_full_binns_per_row_count-2; bin_number+=2){
-
-        int row_and_bin_offset_raw_frame = row_offset+bin_offset;
-
-        for(int i=0; i<4; i++){
-            newArr1[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+i];
-            newArr2[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+4+i];
-            newArr3[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+8+i];
-        }
-
-        for(int i=0; i<4; i++){
-            newArr1[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+i];
-            newArr2[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+4+i];
-            newArr3[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+8+i];
-        }
-
-
-        uint16x8_t vec1_16x8, vec2_16x8, vec3_16x8, vec4_16x8;
-
-        vec1_16x8 = vld1q_u16(newArr1);
-        vec2_16x8 = vld1q_u16(newArr2);
-        vec3_16x8 = vld1q_u16(newArr3);
-
-        vec4_16x8 = vhaddq_u16(vec1_16x8, vec2_16x8);
-        vec4_16x8 = vhaddq_u16(vec3_16x8, vec4_16x8);
-
-        uint16_t totPixVal1 = vgetq_lane_u16(vec1_16x8, 0) + vgetq_lane_u16(vec1_16x8, 1) + vgetq_lane_u16(vec1_16x8, 2) + vgetq_lane_u16(vec1_16x8, 3);
-        uint16_t totPixVal2 = vgetq_lane_u16(vec1_16x8, 4) + vgetq_lane_u16(vec1_16x8, 5) + vgetq_lane_u16(vec1_16x8, 6) + vgetq_lane_u16(vec1_16x8, 7);
-
-        p_binned_frames[image_number][binned_rows_offset+bin_number] = (unsigned char)(totPixVal1/BINNINGFACTOR);
-        p_binned_frames[image_number][binned_rows_offset+bin_number+1] = (unsigned char)(totPixVal2/BINNINGFACTOR);
-
-
-        bin_offset += BINNINGFACTOR;
-
-      }
-      if(g_samples_last_bin_count>0){
-        int tot_pixel_val = 0;
-        for(int bin_number=0; bin_number<g_samples_last_bin_count; bin_number++){
-          tot_pixel_val = p_pixels_in_frame[g_bands_binned_per_row_count*BINNINGFACTOR+bin_number];
-        }
-        p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
-
-        }
-    }
-    is_UnlockSeqBuf (camera, 1, p_raw_frame);
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-}
-
-  printf("avg binning time: %f\n", totTime/g_frame_count);
+//   struct timeval  tv1, tv2, tv3, tv4;
+//   gettimeofday(&tv1, NULL);
+//   double totTime = 0;
+//   ////////////////////
+//   uint16_t newArr1[BINNINGFACTOR];
+//   uint16_t newArr2[BINNINGFACTOR];
+//   uint16_t newArr3[BINNINGFACTOR];
+//   uint16_t newArr4[BINNINGFACTOR];
+//
+//   char* p_raw_frame;
+//   int imagesequence_id = 0;
+//   int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
+//
+//   for(int image_number=0; image_number<g_frame_count; image_number++){
+//     // gettimeofday(&tv1, NULL);
+//     int errorCode;
+//     do{
+//       errorCode = is_WaitForNextImage(camera, 1000, &(p_raw_frame), &imagesequence_id);
+//
+//       if(errorCode!=IS_SUCCESS){
+//         is_UnlockSeqBuf (camera, 1, p_raw_frame);
+//         printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
+//       }
+//     }while(errorCode!=IS_SUCCESS);
+//
+//     gettimeofday(&tv2, NULL);
+//     totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+//     gettimeofday(&tv1, NULL);
+//     // Copy values to 16 bit array
+//     uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
+//     for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
+//       p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+//     }
+//
+//     gettimeofday(&tv1, NULL);
+//     // Binn image
+//     #pragma omp parallel for num_threads(2)
+//     for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
+//       int row_offset = sensor_row*g_sensor_columns_count;
+//       int binned_rows_offset = sensor_row*g_bands_binned_per_row_count;
+//
+//       int bin_offset = 0;
+//       for(int bin_number=0; bin_number<g_full_binns_per_row_count-2; bin_number+=2){
+//
+//         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
+//
+//         for(int i=0; i<4; i++){
+//             newArr1[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+i];
+//             newArr2[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+4+i];
+//             newArr3[i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+8+i];
+//         }
+//
+//         for(int i=0; i<4; i++){
+//             newArr1[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+i];
+//             newArr2[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+4+i];
+//             newArr3[4+i] = p_pixels_in_frame[row_and_bin_offset_raw_frame+BINNINGFACTOR+8+i];
+//         }
+//
+//
+//         uint16x8_t vec1_16x8, vec2_16x8, vec3_16x8, vec4_16x8;
+//
+//         vec1_16x8 = vld1q_u16(newArr1);
+//         vec2_16x8 = vld1q_u16(newArr2);
+//         vec3_16x8 = vld1q_u16(newArr3);
+//
+//         vec4_16x8 = vhaddq_u16(vec1_16x8, vec2_16x8);
+//         vec4_16x8 = vhaddq_u16(vec3_16x8, vec4_16x8);
+//
+//         uint16_t totPixVal1 = vgetq_lane_u16(vec1_16x8, 0) + vgetq_lane_u16(vec1_16x8, 1) + vgetq_lane_u16(vec1_16x8, 2) + vgetq_lane_u16(vec1_16x8, 3);
+//         uint16_t totPixVal2 = vgetq_lane_u16(vec1_16x8, 4) + vgetq_lane_u16(vec1_16x8, 5) + vgetq_lane_u16(vec1_16x8, 6) + vgetq_lane_u16(vec1_16x8, 7);
+//
+//         p_binned_frames[image_number][binned_rows_offset+bin_number] = (unsigned char)(totPixVal1/BINNINGFACTOR);
+//         p_binned_frames[image_number][binned_rows_offset+bin_number+1] = (unsigned char)(totPixVal2/BINNINGFACTOR);
+//
+//
+//         bin_offset += BINNINGFACTOR;
+//
+//       }
+//       if(g_samples_last_bin_count>0){
+//         int tot_pixel_val = 0;
+//         for(int bin_number=0; bin_number<g_samples_last_bin_count; bin_number++){
+//           tot_pixel_val = p_pixels_in_frame[g_bands_binned_per_row_count*BINNINGFACTOR+bin_number];
+//         }
+//         p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
+//
+//         }
+//     }
+//     is_UnlockSeqBuf (camera, 1, p_raw_frame);
+//     gettimeofday(&tv2, NULL);
+//     totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+// }
+//
+//   printf("avg binning time: %f\n", totTime/g_frame_count);
 }
 
 void HSICamera::captureMeanBinning(){
@@ -643,98 +666,98 @@ void HSICamera::captureMeanBinning(){
 // Sends cube to FPGA and waits until it has sent compressed image back
 void HSICamera::transferDMA(){
 
-  cubedma_init_t cubedma_parameters = {
-		.address = {
-			.source      = (uint32_t)(SEND_PHYS_ADDR),
-			.destination = (uint32_t)(RECIEVE_PHYS_ADDR)
-		},
-		.cube = {
-			.n_planes  = 1,
-			.c_offset  = 0,
-			.planewise =  0,
-			.blocks    = {
-				.enabled = 0,
-				.dims = { 0, 0, 0 }
-			},
-			.dims = {
-				.width = 107,
-				.height = 720,
-				.depth = 500,
-				.size_row = 53500
-			}
-		},
-		.interrupt_enable = {
-			{0, 0}, {0, 0}
-		}
-	};
-
-  CubeDMADriver cdma;
-  cdma.cubedma_Init(cubedma_parameters);
-
-  // Clean cache
-  unsigned long dummy; //This does nothing, parameter rquired by the kernel.
-  ioctl(fd_send, 0, &dummy);
-
-  cdma.cubedma_StartTransfer(S2MM);
-	cdma.cubedma_StartTransfer(MM2S);
-
-  // Wait until transfer and receive is done
-  volatile uint32_t time;
-	cubedma_error_t err = ERR_TIMEOUT;
-	for (time = 0; time < TIMEOUT; time++) {
-		if (cdma.cubedma_TransferDone(MM2S)) {
-			err = SUCCESS;
-			break;
-		}
-	}
-  if (err != SUCCESS) {
-		printf("ERROR: MM2S transfer timed out!\n\r");
-	}
-
-  // err = ERR_TIMEOUT;
+  // cubedma_init_t cubedma_parameters = {
+	// 	.address = {
+	// 		.source      = (uint32_t)(SEND_PHYS_ADDR),
+	// 		.destination = (uint32_t)(RECIEVE_PHYS_ADDR)
+	// 	},
+	// 	.cube = {
+	// 		.n_planes  = 1,
+	// 		.c_offset  = 0,
+	// 		.planewise =  0,
+	// 		.blocks    = {
+	// 			.enabled = 0,
+	// 			.dims = { 0, 0, 0 }
+	// 		},
+	// 		.dims = {
+	// 			.width = 107,
+	// 			.height = 720,
+	// 			.depth = 500,
+	// 			.size_row = 53500
+	// 		}
+	// 	},
+	// 	.interrupt_enable = {
+	// 		{0, 0}, {0, 0}
+	// 	}
+	// };
+  //
+  // CubeDMADriver cdma;
+  // cdma.cubedma_Init(cubedma_parameters);
+  //
+  // // Clean cache
+  // unsigned long dummy; //This does nothing, parameter rquired by the kernel.
+  // ioctl(fd_send, 0, &dummy);
+  //
+  // cdma.cubedma_StartTransfer(S2MM);
+	// cdma.cubedma_StartTransfer(MM2S);
+  //
+  // // Wait until transfer and receive is done
+  // volatile uint32_t time;
+	// cubedma_error_t err = ERR_TIMEOUT;
 	// for (time = 0; time < TIMEOUT; time++) {
-	// 	if (cdma.cubedma_TransferDone(S2MM)) {
+	// 	if (cdma.cubedma_TransferDone(MM2S)) {
 	// 		err = SUCCESS;
 	// 		break;
 	// 	}
 	// }
-  while(!cdma.cubedma_TransferDone(S2MM)){
-
-  }
-	if (err != SUCCESS) {
-		printf("ERROR: S2MM transfer timed out!\n\r");
-	}
-
-  // Flush cache
-  ioctl(fd_send, 1, &dummy); //TODO: Make enum for clean and flush command
-
-  ///////////////Debug stuff
-  int nPrinted = 0;
-  uint32_t matches = 0;
-  uint32_t misses = 0;
-  printf("i:   src   dest\n\r");
-  for (uint32_t i = 0; i < CUBE_SIZE; i++){
-    // if (source[i] == destin[i]) {
-    if (send_channel->buffer[i].value == recieve_channel->buffer[i].value) {
-      matches++;
-    }
-    else {
-      if (nPrinted<20) {
-        nPrinted++;
-        // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
-        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i].value, recieve_channel->buffer[i].value);
-      }
-    }
-  }
-
-	if (matches != CUBE_SIZE) {
-		fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
-				(double)matches*100/CUBE_SIZE);
-
-	}
-	else {
-		printf("Transfer success!\n\r");
-	}
+  // if (err != SUCCESS) {
+	// 	printf("ERROR: MM2S transfer timed out!\n\r");
+	// }
+  //
+  // // err = ERR_TIMEOUT;
+	// // for (time = 0; time < TIMEOUT; time++) {
+	// // 	if (cdma.cubedma_TransferDone(S2MM)) {
+	// // 		err = SUCCESS;
+	// // 		break;
+	// // 	}
+	// // }
+  // while(!cdma.cubedma_TransferDone(S2MM)){
+  //
+  // }
+	// if (err != SUCCESS) {
+	// 	printf("ERROR: S2MM transfer timed out!\n\r");
+	// }
+  //
+  // // Flush cache
+  // ioctl(fd_send, 1, &dummy); //TODO: Make enum for clean and flush command
+  //
+  // ///////////////Debug stuff
+  // int nPrinted = 0;
+  // uint32_t matches = 0;
+  // uint32_t misses = 0;
+  // printf("i:   src   dest\n\r");
+  // for (uint32_t i = 0; i < TEST_SIZE; i++){
+  //   // if (source[i] == destin[i]) {
+  //   if (send_channel->buffer[i].value == recieve_channel->buffer[i].value) {
+  //     matches++;
+  //   }
+  //   else {
+  //     if (nPrinted<20) {
+  //       nPrinted++;
+  //       // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+  //       printf("%u: %4u %4u\n\r", i, send_channel->buffer[i].value, recieve_channel->buffer[i].value);
+  //     }
+  //   }
+  // }
+  //
+	// if (matches != TEST_SIZE) {
+	// 	fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
+	// 			(double)matches*100/TEST_SIZE);
+  //
+	// }
+	// else {
+	// 	printf("Transfer success!\n\r");
+	// }
   /////////////////////////////////
 }
 
@@ -785,6 +808,49 @@ void HSICamera::writeCubeToFile(){
   }
 }
 
+
+void HSICamera::writeRawDataToFile(char** data, int rows_count, int columns_count){
+  //Name file
+  struct timespec time_system;
+  clock_gettime(CLOCK_REALTIME, &time_system);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
+  char file_path[64];
+  strcpy(file_path, "/home/capture/");
+  strcat(file_path, timeSystemString);
+  strcat(file_path, "SensorData.raw");
+
+  //Write
+  FILE * fp;
+  fp = fopen (file_path,"wb");
+
+  for(int i=0; i<rows_count; i++){
+    fwrite (data[i], sizeof(char), columns_count, fp);//TODO g_bit_depth
+  }
+  fclose (fp);
+}
+
+void HSICamera::writeRawDataToFile(uint16_t** data, int rows_count, int columns_count){
+  //Name file
+  struct timespec time_system;
+  clock_gettime(CLOCK_REALTIME, &time_system);
+  char timeSystemString[32];
+  sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
+  char file_path[64];
+  strcpy(file_path, "/home/capture/");
+  strcat(file_path, timeSystemString);
+  strcat(file_path, "SensorData.raw");
+
+  //Write
+  FILE * fp;
+  fp = fopen (file_path,"wb");
+
+  for(int i=0; i<rows_count; i++){
+    fwrite (data[i], sizeof(char), columns_count, fp);//TODO g_bit_depth
+  }
+  fclose (fp);
+}
+
 void HSICamera::writeRawDataToFile(uint12_t* data, int count){
   //Name file
   struct timespec time_system;
@@ -804,35 +870,6 @@ void HSICamera::writeRawDataToFile(uint12_t* data, int count){
   printf("Writing to file: sizeof(uint12_t)=%d count=%d \n", sizeof(uint12_t), count );
   // for(int i=0; i<count; i++){
     fwrite (data, sizeof(uint12_t), count, fp);//TODO g_bit_depth
-  // }
-  // fclose (fp);
-
-  // char buffer[] = { 'x' , 'y' , 'z' };
-  // printf("Writing to file: sizeof(char)=%d sizeof(buffer)=%d \n", sizeof(char), sizeof(buffer) );
-  // fwrite (buffer , sizeof(char), sizeof(buffer), fp);
-  fclose (fp);
-
-}
-
-void HSICamera::writeRawDataToFile(void* data, int size_samples, int count_samples){
-  //Name file
-  struct timespec time_system;
-  clock_gettime(CLOCK_REALTIME, &time_system);
-  char timeSystemString[32];
-  sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
-  char file_path[64];
-  strcpy(file_path, "/home/root/capture/");
-  strcat(file_path, timeSystemString);
-  strcat(file_path, "rawSensorData.raw");
-
-  //Write
-  FILE * fp;
-  fp = fopen (file_path,"wb");
-  if (fp==NULL) {fputs ("File error\n",stderr); exit (1);}
-  // printf("Writing to file\n" );
-  printf("Writing to file: sizeof(uint12_t)=%d count=%d \n", size_samples, count_samples );
-  // for(int i=0; i<count; i++){
-    fwrite (data, size_samples, count_samples, fp);//TODO g_bit_depth
   // }
   // fclose (fp);
 
@@ -866,177 +903,37 @@ void HSICamera::writeSingleToFile(){
   fclose (fp);
 }
 
-
-void HSICamera::bitonicMerge12(uint16_t* arr){
-
-  // Load vectors
-  uint16x8_t vec1_16x8, vec2_16x8;
-  uint16x4_t vec1_16x4, vec2_16x4, vec3_16x4, vec4_16x4;
-  uint16_t zeroPadding[4] = {0, 0, 0, 0};
-
-  vec1_16x4 = vld1_u16(zeroPadding);
-  vec2_16x4 = vld1_u16(arr);
-  vec3_16x4 = vld1_u16(arr+4);
-  vec4_16x4 = vld1_u16(arr+8);
-
-  // Sorting across registers
-  uint16x4_t max_vec_sort = vmax_u16(vec4_16x4, vec3_16x4);
-  uint16x4_t min_vec_sort = vmin_u16(vec4_16x4, vec3_16x4);
-
-  vec3_16x4 = vmin_u16(max_vec_sort, vec2_16x4);
-  vec4_16x4 = vmax_u16(max_vec_sort, vec2_16x4);
-
-  vec2_16x4 = vmin_u16(vec3_16x4, min_vec_sort);
-  vec3_16x4 = vmax_u16(vec3_16x4, min_vec_sort);
-
-  // Transpose vectors
-  vec1_16x8 = vcombine_u16(vec1_16x4, vec2_16x4);
-  vec2_16x8 = vcombine_u16(vec3_16x4, vec4_16x4);
-
-  uint16x8x2_t interleavedVector = vzipq_u16(vec1_16x8, vec2_16x8);
-  interleavedVector = vzipq_u16(interleavedVector.val[0], interleavedVector.val[1]);
-
-  uint16x8_t reversed_vector = vrev64q_u16(interleavedVector.val[1]);
-
-  // L1
-  uint16x8_t max_vec = vmaxq_u16(reversed_vector, interleavedVector.val[0]);
-  uint16x8_t min_vec = vminq_u16(reversed_vector, interleavedVector.val[0]);
-
-  uint16x8x2_t shuffleTmp = vtrnq_u16(min_vec, max_vec);
-  uint16x8x2_t interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
-
-  // Shuffle lines into right vectors
-  uint16x4_t line1 = vget_high_u16(interleavedTmp.val[0]);
-  uint16x4_t line3 = vget_low_u16(interleavedTmp.val[0]);
-  uint16x4_t line2 = vget_high_u16(interleavedTmp.val[1]);
-  uint16x4_t line4 = vget_low_u16(interleavedTmp.val[1]);
-  uint16x8_t  vec1_L2 = vcombine_u16(line1, line2);
-  uint16x8_t  vec2_L2 = vcombine_u16(line3, line4);
-
-  // L2
-  max_vec = vmaxq_u16(vec1_L2, vec2_L2);
-  min_vec = vminq_u16(vec1_L2, vec2_L2);
-
-  uint16x8x2_t vec1_L3 = vtrnq_u16(min_vec, max_vec);
-
-  // L3
-  max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
-  min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
-
-  uint16x8x2_t zippedResult = vzipq_u16(min_vec, max_vec);
-
-  // Bitonic merge 8x2
-  reversed_vector = vrev64q_u16(zippedResult.val[0]);
-  uint16x4_t reversed_vector_high = vget_high_u16(reversed_vector);
-  uint16x4_t reversed_vector_low = vget_low_u16(reversed_vector);
-  reversed_vector = vcombine_u16(reversed_vector_high, reversed_vector_low);
-
-  max_vec = vmaxq_u16(reversed_vector, zippedResult.val[1]);
-  min_vec = vminq_u16(reversed_vector, zippedResult.val[1]);
-
-  // Shuffle lines into right vectors
-  uint16x4_t max_vec_high = vget_high_u16(max_vec);
-  uint16x4_t max_vec_low = vget_low_u16(max_vec);
-  uint16x4_t min_vec_high = vget_high_u16(min_vec);
-  uint16x4_t min_vec_low = vget_low_u16(min_vec);
-  uint16x8_t shuffled_vec1 = vcombine_u16(min_vec_low, max_vec_low);
-  uint16x8_t shuffled_vec2 = vcombine_u16(min_vec_high, max_vec_high);
-
-  uint16x8_t input_bitonic4x2_max = vmaxq_u16(shuffled_vec1, shuffled_vec2);
-  uint16x8_t input_bitonic4x2_min = vminq_u16(shuffled_vec1, shuffled_vec2);
-
-
-  // Bitonic merge 4x2
-  // L1
-  max_vec = vmaxq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
-  min_vec = vminq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
-
-  shuffleTmp = vtrnq_u16(min_vec, max_vec);
-  interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
-
-  // Shuffle lines into right vectors
-  line1 = vget_high_u16(interleavedTmp.val[0]);
-  line3 = vget_low_u16(interleavedTmp.val[0]);
-  line2 = vget_high_u16(interleavedTmp.val[1]);
-  line4 = vget_low_u16(interleavedTmp.val[1]);
-  vec1_L2 = vcombine_u16(line1, line2);
-  vec2_L2 = vcombine_u16(line3, line4);
-
-  // L2
-  max_vec = vmaxq_u16(vec1_L2, vec2_L2);
-  min_vec = vminq_u16(vec1_L2, vec2_L2);
-
-  vec1_L3 = vtrnq_u16(min_vec, max_vec);
-
-  // L3
-  max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
-  min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
-
-  zippedResult = vzipq_u16(min_vec, max_vec);
-  uint16x4_t lowestValues = vget_high_u16(zippedResult.val[0]);
-  vst1_u16(arr, lowestValues);
-  vst1q_u16(arr+4, zippedResult.val[1]);
-}
-
-
-
-void HSICamera::bitonicMerge6(uint16_t* arr){
-
-  uint16_t tmp_arr[4] = {0, 0, arr[0], arr[1]};
-  uint16x4_t vec1_16x4, vec2_16x4;
-  vec1_16x4 = vld1_u16(tmp_arr);
-  vec2_16x4 = vld1_u16(arr+2);
-
-  uint16x4_t max_vec = vmax_u16(vec1_16x4, vec2_16x4);
-  uint16x4_t min_vec = vmin_u16(vec1_16x4, vec2_16x4);
-
-  vec1_16x4 = vrev32_u16(max_vec);
-
-  max_vec = vmax_u16(vec1_16x4, min_vec);
-  min_vec = vmin_u16(vec1_16x4, min_vec);
-
-  uint16x4x2_t shuffleTmp = vtrn_u16(min_vec, max_vec);
-
-  max_vec = vmax_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
-  min_vec = vmin_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
-
-  uint16x4x2_t zipped_comp = vzip_u16(max_vec, min_vec);
-  uint16x4_t reversed_zipped_vector = vrev64_u16(zipped_comp.val[1]);
-
-
-  // L1
-  max_vec = vmax_u16(reversed_zipped_vector, zipped_comp.val[0]);
-  min_vec = vmin_u16(reversed_zipped_vector, zipped_comp.val[0]);
-
-  shuffleTmp = vtrn_u16(min_vec, max_vec);
-  uint16x4x2_t interleavedTmp = vzip_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
-
-
-  // L2
-  max_vec = vmax_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
-  min_vec = vmin_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
-
-  uint16x4x2_t vec1_L3 = vtrn_u16(min_vec, max_vec);
-
-  // L3
-  max_vec = vmax_u16(vec1_L3.val[0], vec1_L3.val[1]);
-  min_vec = vmin_u16(vec1_L3.val[0], vec1_L3.val[1]);
-
-  uint16x4x2_t zippedResult = vzip_u16(min_vec, max_vec);
-
-  uint16_t tmp_arr5[4];
-  vst1_u16(tmp_arr5, zippedResult.val[0]);
-  *arr = tmp_arr5[2];
-  *(arr+1) = tmp_arr5[3];
-  vst1_u16(arr+2, zippedResult.val[1]);
-}
-
-
 void HSICamera::swap(uint16_t *xp, uint16_t *yp)
 {
     uint16_t temp = *xp;
     *xp = *yp;
     *yp = temp;
+}
+
+void HSICamera::insertionSort(uint16_t arr[], int startPosition, int n)
+{
+  uint16_t key;
+   int i, j;
+   for (i = startPosition+1; i < startPosition+n; i++)
+   {
+      // printf("v - %u\n", *(arr+i));
+      // *(arr+i) = 2;
+      // printf("w - %u\n", *(arr+i));
+       // key = arr[i];
+       j = i-1;
+
+       /* Move elements of arr[0..i-1], that are
+          greater than key, to one position ahead
+          of their current position */
+       while (j >= 0 && arr[j] > key)
+       {
+           arr[j+1] = arr[j];
+           j = j-1;
+       }
+       arr[j+1] = key;
+
+   }
+   // printf("arr end %p\n", arr);
 }
 
 
@@ -1049,4 +946,169 @@ void HSICamera::bubbleSort(uint16_t arr[], int n)
        for (j = 0; j < n-i-1; j++)
            if (arr[j] > arr[j+1])
               swap(&arr[j], &arr[j+1]);
+}
+
+
+void HSICamera::bitonicMerge12(uint16_t* arr){
+
+//   // Load vectors
+//   uint16x8_t vec1_16x8, vec2_16x8;
+//   uint16x4_t vec1_16x4, vec2_16x4, vec3_16x4, vec4_16x4;
+//   uint16_t zeroPadding[4] = {0, 0, 0, 0};
+//
+//   vec1_16x4 = vld1_u16(zeroPadding);
+//   vec2_16x4 = vld1_u16(arr);
+//   vec3_16x4 = vld1_u16(arr+4);
+//   vec4_16x4 = vld1_u16(arr+8);
+//
+//   // Sorting across registers
+//   uint16x4_t max_vec_sort = vmax_u16(vec4_16x4, vec3_16x4);
+//   uint16x4_t min_vec_sort = vmin_u16(vec4_16x4, vec3_16x4);
+//
+//   vec3_16x4 = vmin_u16(max_vec_sort, vec2_16x4);
+//   vec4_16x4 = vmax_u16(max_vec_sort, vec2_16x4);
+//
+//   vec2_16x4 = vmin_u16(vec3_16x4, min_vec_sort);
+//   vec3_16x4 = vmax_u16(vec3_16x4, min_vec_sort);
+//
+//   // Transpose vectors
+//   vec1_16x8 = vcombine_u16(vec1_16x4, vec2_16x4);
+//   vec2_16x8 = vcombine_u16(vec3_16x4, vec4_16x4);
+//
+//   uint16x8x2_t interleavedVector = vzipq_u16(vec1_16x8, vec2_16x8);
+//   interleavedVector = vzipq_u16(interleavedVector.val[0], interleavedVector.val[1]);
+//
+//   uint16x8_t reversed_vector = vrev64q_u16(interleavedVector.val[1]);
+//
+//   // L1
+//   uint16x8_t max_vec = vmaxq_u16(reversed_vector, interleavedVector.val[0]);
+//   uint16x8_t min_vec = vminq_u16(reversed_vector, interleavedVector.val[0]);
+//
+//   uint16x8x2_t shuffleTmp = vtrnq_u16(min_vec, max_vec);
+//   uint16x8x2_t interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+//
+//   // Shuffle lines into right vectors
+//   uint16x4_t line1 = vget_high_u16(interleavedTmp.val[0]);
+//   uint16x4_t line3 = vget_low_u16(interleavedTmp.val[0]);
+//   uint16x4_t line2 = vget_high_u16(interleavedTmp.val[1]);
+//   uint16x4_t line4 = vget_low_u16(interleavedTmp.val[1]);
+//   uint16x8_t  vec1_L2 = vcombine_u16(line1, line2);
+//   uint16x8_t  vec2_L2 = vcombine_u16(line3, line4);
+//
+//   // L2
+//   max_vec = vmaxq_u16(vec1_L2, vec2_L2);
+//   min_vec = vminq_u16(vec1_L2, vec2_L2);
+//
+//   uint16x8x2_t vec1_L3 = vtrnq_u16(min_vec, max_vec);
+//
+//   // L3
+//   max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//   min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//
+//   uint16x8x2_t zippedResult = vzipq_u16(min_vec, max_vec);
+//
+//   // Bitonic merge 8x2
+//   reversed_vector = vrev64q_u16(zippedResult.val[0]);
+//   uint16x4_t reversed_vector_high = vget_high_u16(reversed_vector);
+//   uint16x4_t reversed_vector_low = vget_low_u16(reversed_vector);
+//   reversed_vector = vcombine_u16(reversed_vector_high, reversed_vector_low);
+//
+//   max_vec = vmaxq_u16(reversed_vector, zippedResult.val[1]);
+//   min_vec = vminq_u16(reversed_vector, zippedResult.val[1]);
+//
+//   // Shuffle lines into right vectors
+//   uint16x4_t max_vec_high = vget_high_u16(max_vec);
+//   uint16x4_t max_vec_low = vget_low_u16(max_vec);
+//   uint16x4_t min_vec_high = vget_high_u16(min_vec);
+//   uint16x4_t min_vec_low = vget_low_u16(min_vec);
+//   uint16x8_t shuffled_vec1 = vcombine_u16(min_vec_low, max_vec_low);
+//   uint16x8_t shuffled_vec2 = vcombine_u16(min_vec_high, max_vec_high);
+//
+//   uint16x8_t input_bitonic4x2_max = vmaxq_u16(shuffled_vec1, shuffled_vec2);
+//   uint16x8_t input_bitonic4x2_min = vminq_u16(shuffled_vec1, shuffled_vec2);
+//
+//
+//   // Bitonic merge 4x2
+//   // L1
+//   max_vec = vmaxq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
+//   min_vec = vminq_u16(input_bitonic4x2_min, input_bitonic4x2_max);
+//
+//   shuffleTmp = vtrnq_u16(min_vec, max_vec);
+//   interleavedTmp = vzipq_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+//
+//   // Shuffle lines into right vectors
+//   line1 = vget_high_u16(interleavedTmp.val[0]);
+//   line3 = vget_low_u16(interleavedTmp.val[0]);
+//   line2 = vget_high_u16(interleavedTmp.val[1]);
+//   line4 = vget_low_u16(interleavedTmp.val[1]);
+//   vec1_L2 = vcombine_u16(line1, line2);
+//   vec2_L2 = vcombine_u16(line3, line4);
+//
+//   // L2
+//   max_vec = vmaxq_u16(vec1_L2, vec2_L2);
+//   min_vec = vminq_u16(vec1_L2, vec2_L2);
+//
+//   vec1_L3 = vtrnq_u16(min_vec, max_vec);
+//
+//   // L3
+//   max_vec = vmaxq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//   min_vec = vminq_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//
+//   zippedResult = vzipq_u16(min_vec, max_vec);
+//   uint16x4_t lowestValues = vget_high_u16(zippedResult.val[0]);
+//   vst1_u16(arr, lowestValues);
+//   vst1q_u16(arr+4, zippedResult.val[1]);
+}
+
+
+
+void HSICamera::bitonicMerge6(uint16_t* arr){
+//
+//   uint16_t tmp_arr[4] = {0, 0, arr[0], arr[1]};
+//   uint16x4_t vec1_16x4, vec2_16x4;
+//   vec1_16x4 = vld1_u16(tmp_arr);
+//   vec2_16x4 = vld1_u16(arr+2);
+//
+//   uint16x4_t max_vec = vmax_u16(vec1_16x4, vec2_16x4);
+//   uint16x4_t min_vec = vmin_u16(vec1_16x4, vec2_16x4);
+//
+//   vec1_16x4 = vrev32_u16(max_vec);
+//
+//   max_vec = vmax_u16(vec1_16x4, min_vec);
+//   min_vec = vmin_u16(vec1_16x4, min_vec);
+//
+//   uint16x4x2_t shuffleTmp = vtrn_u16(min_vec, max_vec);
+//
+//   max_vec = vmax_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+//   min_vec = vmin_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+//
+//   uint16x4x2_t zipped_comp = vzip_u16(max_vec, min_vec);
+//   uint16x4_t reversed_zipped_vector = vrev64_u16(zipped_comp.val[1]);
+//
+//
+//   // L1
+//   max_vec = vmax_u16(reversed_zipped_vector, zipped_comp.val[0]);
+//   min_vec = vmin_u16(reversed_zipped_vector, zipped_comp.val[0]);
+//
+//   shuffleTmp = vtrn_u16(min_vec, max_vec);
+//   uint16x4x2_t interleavedTmp = vzip_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+//
+//
+//   // L2
+//   max_vec = vmax_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+//   min_vec = vmin_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+//
+//   uint16x4x2_t vec1_L3 = vtrn_u16(min_vec, max_vec);
+//
+//   // L3
+//   max_vec = vmax_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//   min_vec = vmin_u16(vec1_L3.val[0], vec1_L3.val[1]);
+//
+//   uint16x4x2_t zippedResult = vzip_u16(min_vec, max_vec);
+//
+//   uint16_t tmp_arr5[4];
+//   vst1_u16(tmp_arr5, zippedResult.val[0]);
+//   *arr = tmp_arr5[2];
+//   *(arr+1) = tmp_arr5[3];
+//   vst1_u16(arr+2, zippedResult.val[1]);
 }

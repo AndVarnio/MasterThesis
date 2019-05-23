@@ -1,0 +1,53 @@
+@startuml
+HSI_Cli->HSI_Ser: Init
+'activate HSI_Cli
+activate HSI_Ser
+
+HSI_Ser->HSICamera: Open cam
+activate HSICamera
+HSICamera->Camera: Open cam
+activate Camera
+Camera-->HSICamera:
+HSICamera-->HSI_Ser:
+
+HSI_Ser->HSICamera: init
+HSICamera -> Camera: Apply configurations
+Camera-->HSICamera:
+HSICamera->Kernel: Get memory
+Kernel-->HSICamera:
+HSICamera-->HSI_Ser:
+HSI_Ser-->HSI_Cli:
+'deactivate HSI_Ser
+
+HSI_Cli->HSI_Ser: Capture cube
+'activate HSI_Ser
+HSI_Ser->HSICamera: Capture cube
+
+loop n times
+HSICamera->Camera: Get frame
+hnote over HSICamera : Binning
+Camera-->HSICamera:
+end
+
+hnote over HSICamera : Store raw data
+
+HSICamera->CubeDMADriver: Init
+activate CubeDMADriver
+CubeDMADriver-->HSICamera:
+HSICamera->Kernel: Clean cache
+Kernel-->HSICamera:
+HSICamera->CubeDMADriver: Transfer and compress
+CubeDMADriver-->HSICamera:
+deactivate CubeDMADriver
+HSICamera->Kernel: Flush cache
+Kernel-->HSICamera:
+
+hnote over HSICamera : Store compressed cube
+
+HSICamera->Camera: Close camera
+deactivate Camera
+HSICamera-->HSI_Ser:
+deactivate HSICamera
+HSI_Ser-->HSI_Cli
+deactivate HSI_Ser
+@enduml
