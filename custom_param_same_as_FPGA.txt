@@ -1,4 +1,7 @@
-#! Sample entroy coder with full prediction mode and neighbor oriented mode
+#java -jar /home/andreas/Downloads/EMPORDA/dist/emporda.jar -i /home/andreas/MasterThesis/tmp/692485426Data.raw -o 692485426DataCmpPC.raw -ig 107 500 720 2 0 -c -f /home/andreas/MasterThesis/custom_param_same_as_FPGA.txt -v -so 2 -e 1 -dbg
+#dd bs=19 skip=1 if=692485426DataCmpPC.raw of=692485426DataCmpPCRmHead.raw
+#cmp 589025258Data.raw 692485426DataCmpPCRmHead.raw
+
 
 # ENCODING ORDER 1 = BSQ, 0 = BI
 SAMPLE_ENCODING_ORDER=0
@@ -36,4 +39,3 @@ WEIGHT_UPDATE_SEFP=9
 
 WEIGHT_UPDATE_SE=-6
 #############################################
-

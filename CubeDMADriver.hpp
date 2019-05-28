@@ -1,10 +1,6 @@
 #ifndef SRC_CUBEDMA_H_
 #define SRC_CUBEDMA_H_
 
-// #include <xil_types.h>
-// #include <linux/types.h>
-// #include <stdlib.h>
-// #include<stdio.h>
 #include<stdint.h>
 typedef enum {
 	SUCCESS,
@@ -68,9 +64,7 @@ class CubeDMADriver{
 		void cubedma_ClearInterrupts();
 		int get_received_length();
 	private:
-		void printBits(size_t const size, void const * const ptr);
+
 };
-
-
 
 #endif /* SRC_CUBEDMA_H_ */

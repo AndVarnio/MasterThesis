@@ -3,7 +3,15 @@
 
 extern "C"
 {
-    MHandle create_magic() { return new HSICamera(); }
-    void  initialize_magic(MHandle p, double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube) { return ((HSICamera *)p)->initialize(exposureMs, rows, columns, frames, fps, cube); }
-    void run_magic(MHandle p) {return ((HSICamera *)p)->runCubeCapture();}
+    CameraHandle_C create_camera_handle() {
+      return new HSICamera();
+    }
+
+    void  initialize_camera(CameraHandle_C p, double exposureMs, int rows, int columns, int frames, double fps, int cube) {
+      return ((HSICamera *)p)->initialize(exposureMs, rows, columns, frames, fps, cube);
+    }
+
+    void run_camera(CameraHandle_C p) {
+      return ((HSICamera *)p)->runCubeCapture();
+    }
 }

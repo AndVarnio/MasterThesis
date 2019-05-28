@@ -1,0 +1,2423 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% University Assignment Title Page
+% LaTeX Template
+% Version 1.0 (27/12/12)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% WikiBooks (http://en.wikibooks.org/wiki/LaTeX/Title_Creation)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+% Instructions for using this template:
+% This title page is capable of being compiled as is. This is not useful for
+% including it in another document. To do this, you have two options:
+%
+% 1) Copy/paste everything between \begin{document} and \end{document}
+% starting at \begin{titlepage} and paste this into another LaTeX file where you
+% want your title page.
+% OR
+% 2) Remove everything outside the \begin{titlepage} and \end{titlepage} and
+% move this file to the same directory as the LaTeX file you wish to add it to.
+% Then add \input{./title_page_1.tex} to your LaTeX file where you want your
+% title page.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\title{Title page with logo}
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[12pt, a4paper, usenames,dvipsnames]{article}
+\usepackage{fancyhdr} %Header og footer
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{subcaption}
+\usepackage{parskip}
+\usepackage{wrapfig}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{placeins} %FloatBarrier
+
+\usepackage{tikz}						%geometric/algebraic description.
+\usepackage[toc,page]{appendix}
+\usetikzlibrary{arrows,shapes,snakes,
+		       automata,backgrounds,
+		       petri,topaths}				%To use diverse features from tikz
+
+\definecolor{hue}{RGB}{232,238,247} % Lyseblågrå
+
+\usepackage{listings}
+\pagestyle{fancy}
+\lhead{\leftmark}
+\rhead{\includegraphics[width=4.5cm]{images/logo_ntnu_u-slagord.png}}
+\setlength{\headsep}{2cm}
+% set the default code style
+\lstset{
+    basicstyle=\small,
+    frame=tb, % draw a frame at the top and bottom of the code block
+    tabsize=2, % tab space width
+    showstringspaces=false, % don't mark spaces in strings
+    numbers=left, % display line numbers on the left
+    commentstyle=\color{green}, % comment color
+    keywordstyle=\color{blue}, % keyword color
+    stringstyle=\color{red}, % string color
+    breaklines=true,
+}
+
+\begin{document}
+
+\begin{titlepage}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
+
+\center % Center everything on the page
+
+%----------------------------------------------------------------------------------------
+%	HEADING SECTIONS
+%----------------------------------------------------------------------------------------
+
+\textsc{\LARGE Norwegian University of Science and Technology}\\[1.5cm] % Name of your university/college
+
+%	LOGO SECTION
+%----------------------------------------------------------------------------------------
+
+\includegraphics[width=4.5cm]{images/logo2_ntnu_u-slagord.png}\\[1cm] % Include a department/university logo - this will require the graphicx package
+
+%----------------------------------------------------------------------------------------
+
+\textsc{\Large Master thesis}\\[0.5cm] % Major heading such as course name
+%\textsc{\large Onboard Communication for Hyperspectral Imaging Payload}\\[0.5cm] % Minor heading such as course title
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\HRule \\[0.4cm]
+{ \huge \bfseries Assembly and testing of baseline processing chain}\\[0.4cm] % Title of your document
+\HRule \\[1.5cm]
+
+%----------------------------------------------------------------------------------------
+%	AUTHOR SECTION
+%----------------------------------------------------------------------------------------
+
+\begin{minipage}{0.4\textwidth}
+\begin{flushleft} \large
+\emph{Author:}\\
+Andreas \textsc{Varntresk} % Your name
+\end{flushleft}
+\end{minipage}
+~
+\begin{minipage}{0.4\textwidth}
+\begin{flushright} \large
+\emph{Supervisor:} \\
+Kjetil \textsc{Svarstad} \\% Supervisor's Name
+Milica \textsc{Orlandic} % Supervisor's Name
+\end{flushright}
+\end{minipage}\\[2cm]
+
+% If you don't want a supervisor, uncomment the two lines below and remove the section above
+%\Large \emph{Author:}\\
+%John \textsc{Smith}\\[3cm] % Your name
+
+%----------------------------------------------------------------------------------------
+%	DATE SECTION
+%----------------------------------------------------------------------------------------
+
+{\large \today}\\[2cm] % Date, change the \today to a set date if you want to be precise
+
+%----------------------------------------------------------------------------------------
+
+
+\vfill % Fill the rest of the page with whitespace
+
+\end{titlepage}
+
+\pagenumbering{gobble}
+\begin{abstract}
+
+\end{abstract}
+
+\newpage
+
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\pagenumbering{arabic}
+
+\section{Introduction}
+
+\section{Specialization project}
+In the specialization project the task was to get a camera up and running on Zynq-7000 with embedded linux. The camera was a UI-3060CP Rev. 2, it is a USB camera with a Sony IMX174 Cmos monochrome sensor. The goal was to capture 1735 frames at 32 frames per second, where the frames have bit depth of 12, resolution of 1920x1080 and a binning factor of 20. Then store the data in a cube format. 12 bit frames could not be obtained due to the board only has a USB 2.0 interface, to get a higher bit depth USB 3.0 must be used.
+
+The camera was tested in software trigger and freerun mode. Timing in software triggering were very unstable so out of these two, freerun mode was by far the best option.
+Two different types of binning was tested; median and mean binning, here mean binning was proven to be more susceptive to noise. Different methods of median and mean binning was experimented with. For the mean binning a solution with using SIMD instruction was the fastest, but for median binning none of the tested methods were fast enough on the system. Three different data cubes was tested, these are BIL, BIP and BSQ, here BIL and BIP cubes was equally fast to create a cube and BSQ the slower one, but when the formats gets stored, BSQ is the faster one and BIL and BIP equally slow.
+
+\section{Background}
+\subsection{Hyper Spectral Imaging}
+Hyperspectral imaging captures a continuous specter of light and divides them into bands\cite{remotesensing}. To get a monochrome camera to take hyperspectral images, a lens equipped with slits that uses diffraction to spread the wavelengths is used. The wavelengths then gets spread over the sensor in one dimension, therefore pixels will in one dimension represent space and the other dimension represents bands, this is illustrated in figure \ref{fig::pixelsmonochrome}.
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}
+    \draw[step=0.5cm,color=gray] (-1,-1) grid (1,1) rectangle (-1,-1);
+
+    \node at (0,1.25) {x};
+    \node at (-1.25,0) {$\lambda$};
+
+    \draw (3.5,0) ellipse (.1cm and .5cm);
+
+    \draw[red, dashed] (3.2, 0) -- (1.2, -.75);
+    \draw[green, dashed] (3.2, 0) -- (1.2, -.25);
+    \draw[blue, dashed] (3.2, 0) -- (1.2, .25);
+    \draw[violet, dashed] (3.2, 0) -- (1.2, .75);
+
+    \end{tikzpicture}
+    \caption{Monochrome sensor}
+    \label{fig::pixelsmonochrome}
+\end{figure}
+
+
+There are two common methods for hyperspectral imaging in satellite imaging, it is whisk broom scanning and push broom scanning, on this satellite push broom scanning is used. Figure \ref{pushbroom} shows a principle of how this method works. The space dimension of the sensor is perpendicular to the direction of movement and images are captured continuously.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/pushbroom.png}
+	\caption{Push broom\cite{seelye}}
+	\label{pushbroom}
+\end{figure}
+
+Area images in different wavelengths is obtained by stitching together the continuously captured frames, the spatial dimension of the sensor and all the captured frames becomes X and Y spatial dimensions shown in figure \ref{areacube}, and the band dimension of the sensor is represented in the Z direction.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{images/cube(2).png}
+	\caption{Hyperspectral datacube}
+	\label{areacube}
+\end{figure}
+
+A common way to store hyperspectral images is in a cube format. There are three types that are often used, these are Band Interleaved by Line(BIL), Band Interleaved by Pixel(BIP) and Band SeQuential(BSQ). Illustrations how these formats look like is shown in figure \ref{cubeformats}.
+
+\begin{figure}[!htb]
+     \centering
+     \begin{subfigure}[b]{0.49\textwidth}
+	  %\rule{\linewidth}{\dimexpr 2\linewidth+2\baselineskip+6pt}
+	  \includegraphics[width=\textwidth]{images/bsq.png}
+       \caption{BSQ}
+       \label{subfig-1:dummy}
+     \end{subfigure}
+     \hfill
+     \begin{minipage}[b]{0.49\textwidth}
+       \begin{subfigure}[b]{\linewidth}
+	    %\rule{\linewidth}{\linewidth}
+	    \includegraphics[width=\textwidth]{images/bil.png}
+         \caption{BIL}
+         \label{subfig-2:dummy}
+       \end{subfigure}\\[\baselineskip]
+       \begin{subfigure}[b]{\linewidth}
+	    %\rule{\linewidth}{\linewidth}
+	    \includegraphics[width=\textwidth]{images/bip.png}
+         \caption{BIP}
+         \label{subfig-3:dummy}
+       \end{subfigure}
+     \end{minipage}
+     \caption{Cube formats\cite{hsi}}
+     \label{cubeformats}
+   \end{figure}
+
+BIL stores the pixels from X spatial direction consecutively for each band in each row and the y spatial direction represents the rows. For BIP the y spatial direction also represents the rows, but within the rows, all the bands for one pixel in X spatial direction is placed consecutively, then the same for the next pixel. BSQ is more different than the other two, here all the pixels in X spatial direction from one band is represented in the columns. The Y spatial direction is represented in consecutive rows for one band, then the next band is represented.
+
+\subsection{Satellite platform}
+
+Figure \ref{fig::platform} shows how the satellite platform looks like, it is delivered by Nano Avionics and is called M6P(Multi Purpose 6U). All systems and subsystems uses the CSP protocol (Cubesat Space Protocol).
+
+
+CSP runs on FreeRTOS and POSIX and pthreads based operating systems and it is written in C\cite{cspgit}. It has a service oriented network topology split into two segments, ground segment and Space segment. The space segment is the platform shown on figure \ref{fig::platform}, and the ground segment is in the station on the ground communicating with the satellite. A CSP node is run on every module in the network and each node can run multiple services, every service can also recieve different commands and data. Communication can be done freely between the modules, this communication is in the form of CSP packets.
+
+\begin{figure}
+\begin{tikzpicture}
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (PC) at (0,0) {PC};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (Sband) at (4,3) {Sband};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (SDR) at (4,-0) {SDR};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (HSI) at (8,-0) {HSI};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (UHF) at (4,-3) {UHF};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (EPS) at (8,-3) {EPS};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (FC) at (12,-3) {FC};
+
+\path [draw, thick] (1.15, .35) --  (2, .35);
+\path [draw, thick] (2, .35) --  (2, 1.5);
+\path [draw, thick] (2, 1.5) --  (4, 1.5);
+\path [draw, thick] (4, 1.5) -- (Sband);
+
+\path [draw, thick] (PC) --  (2, 0);
+\path [draw, thick] (2, 0) --  (2, -1.5);
+\path [draw, thick] (2, -1.5) --  (8, -1.5);
+\path [draw, thick] (4, -1.5) -- (SDR);
+\path [draw, thick] (8, -1.5) -- (HSI);
+
+\path [draw, thick] (1.15, -.35) --  (1.65, -.35);
+\path [draw, thick] (1.65, -.35) --  (1.65, -4.5);
+\path [draw, thick] (1.65, -4.5) -- (12, -4.5);
+\path [draw, thick] (4, -4.5) -- (UHF);
+\path [draw, thick] (8, -4.5) -- (EPS);
+\path [draw, thick] (12, -4.5) -- (FC);
+
+\node[] at (2.2, -4.2) {CAN};
+\node[] at (2.6, -1.2) {CAN};
+\node[] at (2.6, 1.8) {SPI};
+%\path [draw, ->, -latex, dashed] (tekst) -- (6.4, -1.1);
+\end{tikzpicture}
+\caption{Satellite platform}
+\label{fig::platform}
+\end{figure}
+
+CSP packets gets packed and sent between the segments or networks with the UHF module. The platform has two CAN busses, where on one bus the payloads are connected and on the other bus the satellite operation systems are connected. PC(Payload Controller) directs CSP packets between the can buses, and buffers mission data from the payloads and sends it to the S-band which in turn sends data to the ground station. The FC(Flight Computer) logs telemetry data and handles attitude determination and control.EPS(Electrical Power System) delivers power to the satellite. The power source is Lithium-Ion batteries that is charged with the solar panels, the batteries has a capacity of 161Wh.
+
+Figure \ref{fig::onboardprocessing} shows the HSI payload, it is a system in chip with a processing system and programmable logic. The red arrows show the data pipeline, here the frames gets captured by the camera, and transmitted over ethernet network to the processing system, which binns, stores and sends data with a DMA accellerator called CubeDMA to the programmable logic. In the programmable logic super resolution, target detection and a compression algorithm is applied. The data is sent back to memory and forwared over CAN bus with the CSP protocol.
+
+The gray boxes shows what areas this thesis is focused on. In the processing system, a Embedded Linux OS is built with Petalinux tools, this is set up to handle memory for DMA. The camera communication data processing and CubeDMA communication is handled with C++ programs, that is set up to run as CSP services. The lossless compression and CubeDMA accellerator is implemented and the bitstream can loaded from the OS's boot image.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{images/onboardprocessing.png}
+\caption{On board processing}
+\label{fig::onboardprocessing}
+\end{figure}
+
+\subsection{Ueye camera}
+\label{chap::ueye}
+iDS Ueye cameras come in three different series; U3, GV and UI. U3 use USB connections and GV use Gigabit Ethernet connections\cite{propids}. U3 and GV use the standards USB3 Vision and GigE Vision as communication protocol, both of these are closed protocols developed by the Automated Imaging Association(AIA), which is a trade group for the machine vision industry\cite{visionstd}. The UI series comes with either a USB connection or a GigE connection. These cameras use a proprietary protocol developed by IDS, to communicate with these cameras IDS provides a closed source driver that uses a C interface for communication and can be used for both USB and GigE.
+
+The camera chosen to be used on the satellite is a UI-5260CP Rev. 2. This is a GigE camera, it has a Sony IMX249 CMOS monochrome sensor, maximun 47.0 fps and a 1936x1216 resolution. It has integrated FPGA that can be used to do various pre processing, like cropping out a area of interest(AOI), subsampling and gain boost\cite{ueyemanual}.
+
+To capture a image, the camera can run in different operating modes; hardware trigger mode, software trigger mode or freerun mode. In freerun mode, the framerate and numbers of images to capture gets specified first, then a command from software gets sent to start a image capture sequence. In SW- and HW trigger mode one image gets captured when the camera receives a signal from either SW, if it is in SW-trigger mode, or HW if it is in HW-trigger mode. When in trigger mode, the camera goes into standby after it has captured a image to wait for the next trigger signal. In standby the image sensor is switched off. Figure \ref{fig:triggerHW} and \ref{fig:freerun} shows a timing diagram of the operating modes.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/hwTrigger.PNG}
+	\caption{Trigger mode \cite{ueyemanual}}
+	\label{fig:triggerHW}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/trigger2.png}
+	\caption{Freerun \cite{ueyemanual}}
+	\label{fig:freerun}
+\end{figure}
+
+The camera has a 128MB image memory, this memory is used by the camera as a buffer when transferring images, there is also a user memory of 128KB. It has a I/O connector with 8 pins(4 pairs), one pair is for power, one for camera flash, one for HW-trigger and one for GPIO. The GPIO pins can be used as trigger input, flash, set as output low or high, signal level polling and serial interface. When used as a serial interface, files can be transferred to and from user memory on the camera. A overview of the pin assignment is shown in table \ref{tab::iohirose}. The GigE connection has up to 1 Gbps transfer rate while cameras that use USB2.0 has a rate of 480 Mbps and USB3.0 can achieve rates up to 5Gbps.
+
+\begin{table}[]
+\centering
+\caption{Pin assignment camera}
+\label{tab::iohirose}
+\begin{tabular}{|l|l|}
+\hline
+Pin & Description         \\ \hline
+1   & Ground              \\ \hline
+2   & Flash output        \\ \hline
+3   & General Purpose I/O \\ \hline
+4   & Trigger input       \\ \hline
+5   & Flash output        \\ \hline
+6   & General Purpose I/O \\ \hline
+7   & Trigger input       \\ \hline
+8   & Input power         \\ \hline
+\end{tabular}
+\end{table}
+
+The driver comes in versions for Windows, Linux and Embedded Linux. It has three different ways of capturing images; bitmap mode, direct3D mode and openGL mode. In bitmap mode, the images get written to a specified place in memory, then they can be processed or fetched from there. In direct3D and openGL mode, the images get written to GPU memory, the GPU must support either direct3D or openGL to use any of these modes. uEye cameras can capture images with bit depths of 8, 10 or 12. The driver only allows bit depths of 8 to be transferred over USB2.0 connections, but allows 8, 10 or 12 to be transferred over USB3.0 and GigE connections.
+
+To use the c interface, the camera has to be initialized first with the \textsf{is\_InitCamera} function shown below. The arguments to the function are a pointer to a camera handle, this is unique for every camera connected, and pointer to the window used by Direct3D, if Direct3D is not used, this argument is NULL. To exit the camera, only the camera pointer is needed.
+
+
+INT \textsf{is\_InitCamera} (HIDS* \textbf{phf}, HWND \textbf{hWnd})
+
+\hspace{1cm} \textbf{phf} - Pointer to camera handle
+
+\hspace{1cm} \textbf{hWnd} - Pointer to Direct3D
+
+INT \textsf{is\_ExitCamera} (HIDS \textbf{hCam})
+
+\hspace{1cm} \textbf{hCam} - Camera handle
+
+To set the size of the image, three functions is used; \textsf{is\_SetColorMode}, \textsf{is\_ImageFormat} and The \textsf{is\_AOI}. The \textsf{is\_SetColorMode} function tells the driver and the camera what type of images it is supposed to capture, wether it's RGB, gray scale, 8-, 10-, 12-bit, packed or unpacked. The mode argument is a enum which corresponds to one colormode, all possible different color modes can be found in the camera manual.
+
+INT \textsf{is\_SetColorMode} (HIDS \textbf{hCam}, INT \textbf{Mode})
+
+\hspace{1cm} \textbf{Mode} - What colormode to set
+
+\textsf{is\_ImageFormat} can query possible resolutions, query if AOI on the sensor is possible and set a resolution for the sensor, the resolution is a result of scaling the image with, AOI, subsampling and binning to achieve the highest possible transfer rate. When the set resolution command is passed to the function, the parameter tells what imageformat it is going to be set to.
+
+INT \textsf{is\_ImageFormat} (HIDS \textbf{hCam}, UINT \textbf{nCommand}, void \textbf{*pParam}, UINT \textbf{nSizeOfParam})
+
+\hspace{1cm} \textbf{nCommand} - The command for what operation the function is supposed to do.
+
+\hspace{1cm} \textbf{*pParam} - Pointer to the parameters that goes along with the command
+
+\hspace{1cm} \textbf{nSizeOfParam} - Size of the parameters pointed to by pParam
+
+The \textsf{is\_AOI} can be used to set a AOI positioned on the sensor array, get the minimum and maximum size and position and get the current position and size of AOI. A struct with x and y position, width and height of the AOI is passed as a parameter to the function.
+
+INT \textsf{is\_AOI} (HIDS \textbf{hCam}, UINT \textbf{nCommand}, void* \textbf{pParam}, UINT \textbf{nSizeOfParam})
+
+\hspace{1cm} \textbf{nCommand} - The command for what operation the function is supposed to do.
+
+\hspace{1cm} \textbf{*pParam} - Pointer to the parameters that goes along with the command
+
+\hspace{1cm} \textbf{nSizeOfParam} - Size of the parameters pointed to by pParam
+
+The displaymode is set with the \textsf{is\_SetDisplayMode} function and the \textsf{is\_CaptureVideo} sets the camera in freerun mode, the wait parameter tells the cameri if imagecapturing should start immediately, in a given time or when it gets a signal to start.
+
+INT \textsf{is\_SetDisplayMode} (HIDS \textbf{hCam}, INT \textbf{Mode})
+
+\hspace{1cm} \textbf{Mode} - What displaymode to set
+
+INT \textsf{is\_CaptureVideo} (HIDS \textbf{hCam}, INT \textbf{Wait})
+
+\hspace{1cm} \textbf{Mode} - Timeout value
+
+
+
+To allocate memory for a frame, the \textsf{is\_AllocImageMem} is used. This takes the width, height and pixel depth as input arguments and returns a pointer to the allocated memory and the drivers ID of that memory as output arguments.
+
+INT \textsf{is\_AllocImageMem} (HIDS \textbf{hCam}, INT \textbf{width}, INT \textbf{height}, INT \textbf{bitspixel}, char** \textbf{ppcImgMem}, INT* \textbf{pid})
+
+\hspace{1cm} \textbf{width} - Width of image
+
+\hspace{1cm} \textbf{height} - Height of image
+
+\hspace{1cm} \textbf{bitspixel} - Bits er pixel
+
+\hspace{1cm} \textbf{ppcImgMem} - Pointer to memory
+
+\hspace{1cm} \textbf{pid} - ID of memory
+
+The driver keeps a buffer of image locations, this buffer is a ringbuffer that it cycles through when it stores images. The \textsf{is\_AddToSequence} is used to add memory locations to this buffer. The queue must be initialized before it can be used, that is done with \textsf{is\_InitImageQueue}.
+
+INT \textsf{is\_AddToSequence} (HIDS \textbf{hCam}, char* \textbf{pcImgMem}, INT \textbf{pid})
+
+\hspace{1cm} \textbf{pcImgMem} - Pointer to memory
+
+\hspace{1cm} \textbf{pid} - ID of memory
+
+INT \textsf{is\_InitImageQueue} (HIDS \textbf{hCam}, INT \textbf{nMode})
+
+\hspace{1cm} \textbf{nMode} - Queue mode. As of now, only ringbuffer is supported.
+
+\subsection{Zynq7000}
+Zynq 7000 is a family of chips made by Xilinx, figure \ref{fig::soc} shows a block diagram of the chip. The chip consists two main parts, the processing system(PS) and the programmable logic(PL). The programmable logic can be either Artix 7 or Kintex 7 PL, of varying sizes.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=.95\textwidth]{images/zynq-mp-core-dual.png}
+	\caption{Zynq-7000\cite{zynq7000doc}}
+	\label{fig::soc}
+\end{figure}
+
+The processing system is divided into four modules; Application processor unit (APU), Memory interfaces, I/O peripherals (IOP) and Interconnects. There are controllers for many different memory interfaces and static memory. There are IOP's for UART, I2C, USB 2.0, GPIO, GigE and CAN. The interconnects are internal interconnects in the PS and between PS and PL, the architecture for this is a AMBA bus.
+
+The chip is going to be used with a System On Module(SOM) called Picozed but for development a Zedboard is used\cite{zedboard}\cite{zynq700}, the boards are shown on figure \ref{fig::som}. Both boards has Ethernet, USB 2.0 and JTAG connections, and SD card slots. They have DDR 3 memory and QSPI flash, here the Zedboard has 512 MB DDR3 256 MB QSPI, while the Picozed has 1GB DDR3 and 128MB QSPI. The Picozed also has a 4GB eMMC memory as well.
+
+\begin{figure}[!h]
+     \centering
+     \begin{subfigure}[b]{0.49\textwidth}
+	  \includegraphics[width=\textwidth]{images/Zedboard.png}
+       \caption{Zedboard}
+       \label{subfig-1:zed}
+     \end{subfigure}
+     \hfill
+   \begin{subfigure}[b]{0.49\textwidth}
+
+	  \includegraphics[width=\textwidth]{images/Picozed.png}
+       \caption{Picozed}
+       \label{subfig-2:pico}
+     \end{subfigure}
+     \caption{Boards}
+     \label{fig::som}
+   \end{figure}
+
+\subsubsection{PS}
+
+The APU consists of a ARM Cortex-A9 processor, this uses Armv7 architecure and comes in either single core or dual core, in this project, the dual core is used.  It has 32KB instruction and 32 KB data L1 caches and 512 KB of shareable L2 cache with a snoop controller. It has a partially out-of-order pipeline, DMA controller, FPU unit and a SIMD co-processor.
+
+\subsubsection*{NEON}
+The SIMD processor uses NEON architecture, which is a architecture developed by ARM. SIMD processors perform the same instructions on multiple data simultaneously. To do this the data is placed contiguously in registers, the data fields in the registers are referred to as lanes in NEON\ref{neonguide}. The operations are performed on two registers in corresponding lanes, figure \ref{fig::simdex} shows how a SIMD add operation is performed on a four lane vector.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=.7\textwidth]{images/simdex.png}
+	\caption{Four lane vector operation\cite{neonguide}}
+	\label{fig::simdex}
+\end{figure}
+
+This architecture has sixteen 128 bit vectors, and the operations that are supported for integer operations are; 16x8-bit, 8x16-bit, 4x32-bit, 2x64-bit, and for floating point operations; 8x16-bit, 4x32-bit, 2x64-bit. To use the NEON architecture, assembly code can be written or compiler intrinsics can be used, these intrinsics can be either wrappers for single assembly instructions or multiple assembly instructions. They are available for Arm Compilers, gcc and LLVM compilers\cite{armcortex}\cite{armneon}.
+
+Intrinsics exist for addition, multiplication, loading and unloading of registers. Comparison operations, where two vectors get compared lanewise and min or max values gets placed in a destination register. There are instructions for operations wher lanes get rearranging within a register or between registers, these are called shuffle instructions. Three of them is called zip-, transpose- and reverse operations.
+\cite{neonshuffle}
+
+Figure \ref{fig::reverseop} shows how a reverse operation in NEON can look like. N-bit lanes can be reversed in M-bit sub elements within a vector. As shown in the example, \textit{VREV16.8 d0 d1}, reverses each 8-bit pair in the 4 sub elements of 16-bit within the vector, and \textit{VREV32.8 d0 d1} reverses four 8-bit elements within 32-bit sub elements.
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/reverse.png}
+	\caption{Reverse operation NEON\cite{neonshuffle}}
+	\label{fig::reverseop}
+\end{figure}
+
+Figure \ref{fig::transposeop} shows the transpose operation. This operation switches two diagonaly located lanes of two vectors.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.65\textwidth]{images/transpose.png}
+	\caption{Transpose operation NEON\cite{neonshuffle}}
+	\label{fig::transposeop}
+\end{figure}
+
+Figure \ref{fig::zipop} shows a zip operation. This operation interleaves the lanes of two source vectors into the same source vectors. Operations for un zipping also exists.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.75\textwidth]{images/zip.png}
+	\caption{Zip operation NEON\cite{neonshuffle}}
+	\label{fig::zipop}
+\end{figure}
+
+\subsubsection{Booting}
+Zynq has on chip memory(OCM), that is used for booting, the memory is divided into two parts; ROM and RAM, both have 256KB each. Figure \ref{fig::bootorder} shows the different stages of the booting process.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/bootorder.png}
+	\caption{Boot stages\cite{zynqbook}}
+	\label{fig::bootorder}
+\end{figure}
+
+The first stage, stage 0 that is, gets initiated when the chip receives a power on signal, this typically happens when the power switch on the board goes from off to on or when the system reboots. The first thing this stage does is to read the boot mode signals to see where to load the boot source from, it can either be JTAG, QSPI, flash or SD card. Different boot mode signals can be set with jumpers on pin MI02-MI06 on the board. When it knows where to boot from, the First Stage Boot Loader(FSBL) gets loaded from there and into RAM in OCM, then it checks if it is a valid image and if it is, it hands over control to the FSBL.
+
+FSBL's purpose is to load the seconds stage boot loader(SSBL). It initializes the CPU, programs the FPGA, loads the Second Stage Boot Loader into main memory, and if there are any user applications here they are loaded into memory.
+
+The SSBL executes the user application if there are any. Then loads a compressed image of the OS into memory and decompresses it, which in this case will be the kernel image. A device tree and a ramdisk file is also loaded with the kernel. The device tree is used by the kernel to see what hardware is available to it and the ramdisk is used by the kernel to help load the root file system.
+
+
+Figure \ref{fig::bootfiles} shows the files involved in the boot process. FSBL, FPGA bitstream and SSBL must be packaged into one file called BOOT.BIN, and the device tree, ramdisk and kernel image usually gets packaged into a imge file called image.ub.
+
+ \begin{figure}[h!]
+	\centering
+	\includegraphics[width=.60\textwidth]{images/bootfiles.png}
+	\caption{Boot files\cite{zynqbook}}
+	\label{fig::bootfiles}
+\end{figure}
+
+
+
+
+\subsubsection{Communication}
+\subsubsection*{CAN}
+In CAN(Controller Area Network) networks there is no bus master, the data gets sent in many short messages and is broadcasted to the entire network\cite{canbus}. Bus access is event driven and non destructive, if one node has access to the bus and another node requests the bus, the requesting node must wait for the currently accessing node. Arbitration is done with priority and randomly for nodes with the same priority. The physical layer is two wires, and the data rate is ???bps. The bus also has the ability to self diagnose and repair data errors.
+\subsubsection*{GigE}
+The Gigabit Ethernet connection is a 1000BASE-T connection, this means the data rate is 1000Mbps and that the physical connection is four pairs of twisted wires\cite{ueyemanual}. The communication protocol used by the camera is UDP, which is a fast but unreliable compared to other protocols used over ethernet connections. UDP sends data in packets with the IP address of the destination in the header\cite{udp} and no form of handshaking, this way, if packets gets dropped, the sender will not know and data errors may occur, this is why it's considered more unreliable\cite{udp}.
+\subsubsection*{AMBA}
+The AMBA bus uses the AXI(Advanced eXstensible Interface) bus standard, this is developed by ARM. In this standard two nodes can occupy the bus at the same time, the initiator of the communication is the master and the other node is the slave. The data width can be either 32-bit or 64-bit.
+
+\subsubsection{Embedded Linux}
+To build the OS petalinux tools is used, this tool builds Embedded Linux systems that is targeted for Xilinx SoCs. Petalinux tools has debug agents, GCC tools and a integrated QEMU  simulator, that simulates the HW, so that the system can be tested. It is possible to customize the boot loader, kernel, file system, libraries and system parameters.
+
+In Linux, the OS is called the Kernel\cite{operatingsystems}. Memory is divided into user space and kernel space, where user space is where the user applications is running and kernel space is where the kernel is running. Kernel space usually has full access to hardware and system resources. While user space applications has limited privileges, but has access to some of the kernels functions through system calls.
+
+The Linux kernel is modular monolithic. Modular meaning that it consists of a structure of modules that is linked together, they are dynamically linked, which means that a module can be linked and un-linked at runtime. Monolithic meaning that it runs as a single process with a single address space and all modules have access to each others internal data structures and routines. Figure \ref{fig::lunuxkern} shows the division between user space and kernel space, with some of the common modules of a kernel.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/linkern.PNG}
+	\caption{Linux kernel\cite{operatingsystems}}
+	\label{fig::lunuxkern}
+\end{figure}
+
+\subsubsection{Memory}
+
+Figure \ref{fig::memhir} shows how memory in modern computer systems is arranged. The design is hierarchical, where the fastest memory is closest to the CPU, the memory closer to the CPU is also smaller in size. Both L1 and L2 cache are usually built into the CPU chip, but L1 is smaller and closest to the CPU. The main memory is used by applications that are running and data that is manipulated in some way or data that has to be available to other processes is placed here. Main memory is volatile and also known as RAM, for Random Access Memory. At the bottom of the hierarchy is storage, this is the biggest memory in size but also the slowest, this memory is not volatile, so data that are stored here is permanently stored. Storage is often a magnetic disk or flash based memory.
+
+The reason for having small fast memory close to the CPU is because of the principle of temporal and spatial locality. Temporal locality is the principle that data that is accessed is likely to be accessed again in the near future. Spatial locality is the principle that when some data is accessed, the data next to it is also likely to be accessed.
+
+ \begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/memhiera.PNG}
+	\caption{Memory hierarchy\cite{comparch}}
+	\label{fig::memhir}
+\end{figure}
+
+Main memory can be partitioned with fixed partition sizes or variable partition sizes. With fixed partitions, memory is divided up into fixed length partitions known as a frames, a program is then assigned one ore more frames. With variable partition, memory is divided into segments of different sizes, the segments can either be pre defined or dynamically partitioned during runtime. Figure \ref{fig::partitt} shows how a memory can be partitioned with either fixed or variable length partitioning.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{images/partitioning.PNG}
+	\caption{Memory partitioning\cite{operatingsystems}}
+	\label{fig::partitt}
+\end{figure}
+
+The OS can divide programs and data either into segments or pages. When the segment scheme is used the the program is divided into segments, these segments can be different sizes with a maximum length. When the page scheme is used the programs is divided into pages that are of fixed sizes. Using this scheme with memory divided up into frames and using small frame sizes is a convenient way to organize memory. If the pages have the same sizes as the frames, one page can be placed into one frame, this is also how it is done in Linux.
+
+A page table is used to keep track of what frame each page occupies, pages can then be placed anywhere in memory, making it easy to use memory more efficiently. Figure \ref{fig::pageframe} shows how three programs, A, C and D can be placed in memory and that there is no need to place pages contiguously in memory as well.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.25\textwidth]{images/pageframe.PNG}
+	\caption{Paging \cite{operatingsystems}}
+	\label{fig::pageframe}
+\end{figure}
+
+Fragmentation is when there are unused spaces in memory which it is impossible to fit a process in\cite{operatingsystems}. When the segment scheme is used, there is a risk of having a lot of unused space because new segments won't fit between the segments already in memory, this is called external fragmentation. When the paging scheme is used there is a risk of a lot of unused space in the last page at the end of each process, this is called internal fragmentation.
+
+A page address is divided up into a page number and a offset value, figure \ref{fig::logicaddress} shows a example of this for a logical 16-bit address. Logical addresses is a memory references that doesn't reference directly to physical addresses. The first 6 bits of the address represents the page, this is used by a page table to find the frame number in physical memory. The last ten bits is the offset to the data within the page/frame.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/logicaddress.PNG}
+	\caption{Logical address \cite{operatingsystems}}
+	\label{fig::logicaddress}
+\end{figure}
+
+Memory management is a collaboration between HW and OS. The page table of processes are kept in memory, this results in that every memory access includes two memory accesses, one for translation from logical address to physical address and one for accessing the actual physical memory. To help prevent this a HW unit called a Translation Lookaside Buffer(TLB) is used, the TLB caches the page tables based on some caching algorithm, and if the logical address is present in the TLB, the translation to physical memory is done directly there so that only one memory access is necessary.
+
+A technique used in many modern systems is virtual memory. This is used to make it look like memory is larger than it really is. This has the advantage of making it so that lots of different data and different processes can be maintained in memory at the same time and keep processes larger than physical memory in memory.
+
+For this to be possible all processes is assigned their own virtual address space of logical addresses. The pages of a process can be in either memory or storage, OS places pages in either memory or storage as it sees fit, usually pages that is not needed right now is placed in storage, this is called swapping. Each process has it's own page table. Figure \ref{fig::pagentry} shows how a pagetable entry might look like for virtual memory. A P-bit tells if the page is present in memory or not, a M-bit tells if the page has been modified since the last time it was loaded from storage and the other control bits can be stuff like protection and sharing.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.65\textwidth]{images/pagentry.png}
+	\caption{Logical address \cite{operatingsystems}}
+	\label{fig::pagentry}
+\end{figure}
+
+Different page tables might be different sizes, so a pointer to the page table is needed. Figure \ref{fig::virtophys} shows how a virtual address and page table pointer reference a physical address in memory.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/virtophys.png}
+	\caption{Virtual to physical \cite{operatingsystems}}
+	\label{fig::virtophys}
+\end{figure}
+
+\subsubsection{Memory in Linux}
+Because page tables might become big, it is not favorable to keep all of the table in memory. To solve this, page tables can also be stored in virtual memory. This leads to a hierarchical page table system. For Linux a three level page table structure is used, this is shown in figure \ref{fig::linpagetable}.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/threelevelpages.png}
+	\caption{Linux page table structure \cite{operatingsystems}}
+	\label{fig::linpagetable}
+\end{figure}
+
+The first level is the page directory, this can be found at a address stored in the page table pointer. The page directory points to a page in the middle directory, which in turn points to the actual page table, that points to a page. The virtual address is divided into three directory offset values which is used in their respective directories, and a offset for the actual page. The size of the page directory is one page while the sizes of middle directory and page table can be multiple pages long. If the hardware does not support three level page tables, the middle directory is set to be only one entry, which eliminates this level.
+
+There are three types of addresses associated with memory in Linux, those are; User virtual addresses, Kernel virtual addresses and Kernel logical addresses. Each process has its own virtual address space which also requires their own virtual addresses, these addresses can be 32 or 64 bit long. Kernel virtual addresses can also be 32 or 64 bit long, they can be either regular virtual addresses or kernel logical addresses. The logical addresses have a one to one mapping to physical memory addresses, where the page number of the virtual address corresponds to the frame number of the physical address, and the offset in the page corresponds to the offset in the frame. A Kernel virtual address which is not a logical address can be mapped anywhere in memory.
+
+\subsection{Accelerators}
+
+\subsubsection{CubeDMA}
+
+The cubeDMA core can read BSQ and BIP ordered cubes from memory. It is designed to be able to read bit-depths that aren't byte multiples and stored without padding. It is possible to read a cube block wise, so that the cube is divided into blocks and the blocks is streamed in it's entirety before the next block, the size of the blocks must be powers of two.
+
+The cube(or block) is read from left to right, Figure \ref{fig:streamingorder} shows the order of how both BIP and BSQ cubes are streamed from memory with a cube that is divided into four blocks. The red lines indicate the order the pixels are read, the width and height are spatial dimensions and depth is the spectral dimension.
+
+\begin{figure}[!htb]
+     \centering
+     \begin{subfigure}[b]{0.49\textwidth}
+	  \includegraphics[width=\textwidth]{images/dmabip.PNG}
+       \caption{BIP}
+       \label{subfig-1:bip}
+     \end{subfigure}
+     \hfill
+   \begin{subfigure}[b]{0.49\textwidth}
+
+	  \includegraphics[width=\textwidth]{images/dmabsq.PNG}
+       \caption{BSQ}
+       \label{subfig-2:bsq}
+     \end{subfigure}
+     \caption{Streaming order\cite{johanmaster}}
+     \label{fig:streamingorder}
+   \end{figure}
+
+On figure \ref{fig:cubedmacore} is a block diagram of the cubeDMA core. It consists of two parts; memory to stream channel(MM2S) and a stream to memory channel(S2MM). Both of does as the names sugest, MM2S accesses memory and streams the data into the FPGA, and S2MM streams data from the FPGA and stores it in memory.
+
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{images/cubedmacore.PNG}
+    \caption{CubeDMA core}
+    \label{fig:cubedmacore}
+\end{figure}
+
+The MM2S channel consists of three parts; The datamover/tinymover, unpacker and controller. Datamover/tinymover is responsible for reading directly from memory over the bus. The datamover is a Xilinx IP and it is used for BIP transfers in this design, the tinymover is designed by the creator of the cubeDMA core and is used for BSQ transfers. The datamover or tinymover sends the lines read from memory to the unpacker. The unpacker shifts the data into alignment and correct word sizes. Figure \ref{fig:unpacker} shows how a 64 bit words of unaligned 12-bit data from memory is shifted and placed into words containing four 12-bit samples. The controller manages the datamover and unpacker during transfer and also outputs a control stream that an accelerator might need. The information in the control stream is; whether a sample is the last pixel in a block, if a sample are in the last column and if a sample is in the last row.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{images/unpacker.PNG}
+    \caption{Unpacker}
+    \label{fig:unpacker}
+\end{figure}
+
+The S2MM channel works in a similar way as the MM2S channel, only in opposite order. The packer recieves data from a stream and packs it into correct word sized and sends them to the datamover. The datamover writes the data sequentially to memory over the axi bus. While the controller manages the datamover and packer.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{images/packer.PNG}
+    \caption{Packer}
+    \label{fig:packer}
+\end{figure}
+
+The controllers reads and writes to memory mapped register. These registers must be set up to execute a transfer, table \ref{tab::mm2s} and \ref{tab::S2MM} shows theses registers.
+
+\begin{table}[]
+\centering
+\label{tab::mm2s}
+\caption{MM2S registers}
+\begin{tabular}{|l|l|l|}
+\hline
+Field                     & Description                                                                                                                       & Bits  \\ \hline
+\multicolumn{3}{|l|}{Register 0x00}                                                                                                                                   \\ \hline
+Start                     & \begin{tabular}[c]{@{}l@{}}Starts when this bit transitions \\ from 0 to 1\end{tabular}                                           & 0     \\ \hline
+Blockwise mode            & Cube is read in blocks                                                                                                            & 2     \\ \hline
+Planewise mode            & Cube is read in plains                                                                                                            & 3     \\ \hline
+Error IRQ enable          & IRQ when error occurs                                                                                                             & 4     \\ \hline
+Completion IRQ enable     & IRQ when transfer completed                                                                                                       & 5     \\ \hline
+Number of plane transfers & ceil(depth/C\_MM2S\_NUM\_COMP)                                                                                                    & 8-15  \\ \hline
+Start offset              & Number of components start offset                                                                                                 & 16-23 \\ \hline
+\multicolumn{3}{|l|}{Register 0x04}                                                                                                                                   \\ \hline
+Transfer done             & Indicates that transfer has completed                                                                                             & 0     \\ \hline
+Error code                & \begin{tabular}[c]{@{}l@{}}Indicates error condition(s) that \\ occured during transfer\end{tabular}                              & 1-3   \\ \hline
+Error IRQ flag            & \begin{tabular}[c]{@{}l@{}}On Read: 1 when IRQ triggered due to error\\ On Write: Writing 1 clears the IRQ flag\end{tabular}      & 4     \\ \hline
+Completion IRQ flag       & \begin{tabular}[c]{@{}l@{}}On Read: 1 when IRQ triggered due to completion\\ On Write: Writing 1 clears the IRQ flag\end{tabular} & 5     \\ \hline
+\multicolumn{3}{|l|}{Register 0x04}                                                                                                                                   \\ \hline
+Base address              & Address of the first component in the HSI cube                                                                                    & 0-31  \\ \hline
+\multicolumn{3}{|l|}{Register 0x0C}                                                                                                                                   \\ \hline
+Width                     & The width of the HSI cube                                                                                                         & 0-11  \\ \hline
+Height                    & The height of the HSI cube                                                                                                        & 12-23 \\ \hline
+Depth (low)               & \begin{tabular}[c]{@{}l@{}}Lower 8 bits of the depth / \\ number of planes of the HSI cube\end{tabular}                           & 24-31 \\ \hline
+\multicolumn{3}{|l|}{Register 0x10}                                                                                                                                   \\ \hline
+Block width               & log2 of block width in pixels                                                                                                     & 0-3   \\ \hline
+Block height              & log2 of block height in pixels                                                                                                    & 4-7   \\ \hline
+Depth (high)              & \begin{tabular}[c]{@{}l@{}}High 4 bits of the depth / \\ number of planes of the HSI cube\end{tabular}                            & 8-11  \\ \hline
+Last block row size       & \begin{tabular}[c]{@{}l@{}}Size of one row in the last block \\ in each row of blocks\end{tabular}                                & 12-31 \\ \hline
+\multicolumn{3}{|l|}{Register 0x14}                                                                                                                                   \\ \hline
+Row size                  & Number of components in one row of the cube                                                                                       & 0-19  \\ \hline
+\end{tabular}
+\end{table}
+
+
+\begin{table}[]
+\centering
+\label{tab::S2MM}
+\caption{S2MM registers}
+\begin{tabular}{|l|l|l|}
+\hline
+Field                 & Description                                                                                                                       & Bits \\ \hline
+\multicolumn{3}{|l|}{Register 0x20}                                                                                                                              \\ \hline
+Start                 & Core starts transfer when this bit transitions from 0 to 1                                                                        & 0    \\ \hline
+Error IRQ enable      & Trigger IRQ when error condition arises                                                                                           & 4    \\ \hline
+Completion IRQ enable & Trigger IRQ when transfer is complete                                                                                             & 5    \\ \hline
+\multicolumn{3}{|l|}{Register 0x24}                                                                                                                              \\ \hline
+Transfer done         & Indicates that transfer has completed                                                                                             & 0    \\ \hline
+Error code            & Indicates error condition that occured during transfer                                                                            & 1-3  \\ \hline
+Error IRQ flag        & \begin{tabular}[c]{@{}l@{}}On Read: 1 when IRQ triggered due to error\\ On Write: Writing 1 clears the IRQ flag\end{tabular}      & 4    \\ \hline
+Completion IRQ flag   & \begin{tabular}[c]{@{}l@{}}On Read: 1 when IRQ triggered due to completion\\ On Write: Writing 1 clears the IRQ flag\end{tabular} & 5    \\ \hline
+\multicolumn{3}{|l|}{Register 0x28}                                                                                                                              \\ \hline
+Base address          & Address of where to store data                                                                                                    & 0-31 \\ \hline
+Register 0x2C         &                                                                                                                                   &      \\ \hline
+Received length       & \begin{tabular}[c]{@{}l@{}}Number of bytes received from start \\ of transfer until TLAST was asserted\end{tabular}               &      \\ \hline
+\end{tabular}
+\end{table}
+
+To implement the cubeDMA a few parameters must be chosen, those are shown in figure \ref{tab::dmaparameters}
+
+\begin{table}[]
+\centering
+\label{tab::dmaparameters}
+\caption{CubeDMA parameters }
+\begin{tabular}{|l|l|}
+\hline
+Name                 & Description                                  \\ \hline
+C\_MM2S\_AXIS\_WIDTH & Bit width axi stream from memory             \\ \hline
+C\_MM2S\_COMP\_WIDTH & Bit width for one sample from memory         \\ \hline
+C\_MM2S\_NUM\_COMP   & Number of components in one word from memory \\ \hline
+C\_S2MM\_AXIS\_WIDTH & Bit width axi stream to memory               \\ \hline
+C\_S2MM\_COMP\_WIDTH & Bit width for one sample to memory           \\ \hline
+C\_S2MM\_NUM\_COMP   & Number of components in one word to memory   \\ \hline
+C\_TINYMOVER         & Use of tinymover or datamover
+\end{tabular}
+\end{table}
+
+\subsubsection{Compression}
+
+CCSDS 123.0-B-1 is a image compression algorithm developed by the Consultative Committee for Space Data Systems(CCSDS), this is a committee consisting of many member agencies that meet to discuss common data system problems. For extensive information on algorithm, a document describing the standard is available for anyone \cite{ccsds123}. CCSDS 123 is lossless compression algorithm that is very well suited for hyperspectral images, due to the cube like nature of the data. The compressed image is of varying length depending on the input samples.The compression is done in two stages, predictor stage and encoder stage, shown in figure \ref{fig:blockcompr}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{images/blockCompr.PNG}
+    \caption{Compressor}
+    \label{fig:blockcompr}
+\end{figure}
+
+The input samples to the predictor is a fixed size of D bits, where D is $2\leq D \leq 16$. The predictor stage uses adaptive linear prediction. This means that it uses the sample neighborhood in x, y spatial direction and z spectral direction to predict the value of a sample. The output from this stage is the difference in the predicted value of a sample and the actual value.
+
+The output of the predictor is the input of the encoder. The encoder can either be sample adaptive entropy or block adaptive entropy encoder. Sample adaptive entropy coding uses statistics to assign a variable length code word to each sample. Block adaptive entropy coding divides the samples into blocks, and use independently and adeptly selected encoding methods for each block. This project uses the sample adaptive entropy encoder. The output is a image with a header and a body, where the body are the encoded mapped prediction residuals, and the header consists of image metadata, predictor metadata and entropy coder metadata.
+
+\paragraph{Predictor}
+
+The predictor uses samples from previous bands and the neighborhood within the same band to make the predictions, a typical prediction neighborhood is shown in figure \ref{fig:predictionneigh} Calculation of local sum, central local difference and directional local difference uses neighborhoods like these. The local sum, central local difference and directional local difference is then used to make the predicton calculations.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{images/predictionNeighborhood.PNG}
+    \caption{Prediction neighborhood}
+    \label{fig:predictionneigh}
+\end{figure}
+
+\paragraph{Local sum}
+The local sum is a weighted sum of neighboring samples in the x and y direction within the same band. It can either be a column- or neighbor-oriented local sum, this defines how the neighborhood of samples look like. The differences between the local sum and neighborhood of pixels is called central local differences and directional local differences and are put into a local difference vector, that also includes P previous local differences from previous bands. The local difference vector is used to produce a dot product with a corresponding weight vector.
+
+\paragraph{Calculating weights}
+\label{chap:weight}
+
+For each spectral band the initial weight vector components is assigned like in equation \ref{eq:initweight}. $\Omega$ is a user defined parameter in the range $4\leq\Omega\leq19$.
+
+\begin{equation}
+    \label{eq:initweight}
+    \omega_{z}^{1}(1) = \frac{7}{8}2^{\Omega}, \omega_{z}^{i}(1) = \lfloor\frac{1}{8}\omega_{z}^{i-1}(1)\rfloor, i=2,3,...,P_{z}^{*}.
+\end{equation}
+And the direction weight components is $\omega_{z}^{N}(1) = \omega_{z}^{W}(1) = \omega_{z}^{NW}(1) = 0$
+
+For each prediction calculation, the weight vector is updated, the new vector is found with using equation \ref{eq:updateWeigh} on each component of the vector.
+
+\begin{equation}
+\label{eq:updateWeigh}
+    W_{z}(t+1) = clip(W_{z}(t)+\lfloor\frac{1}{2}(sgn^{+}[e_{z}(t)*2^{-\rho(t)}*U_{z}(t)+1\rfloor,\{\omega_{min},\omega_{max}\})
+\end{equation}
+
+Here $e_{z}(t)$, is defined in equation \ref{eq:avvik} and $\rho(t)$ is defined in equation \ref{eq:rho}
+
+\begin{equation}
+    \label{eq:avvik}
+   e_{z}(t) = 2S_{z}(t)-\Tilde{S}_{z}(t)
+\end{equation}
+
+\begin{equation}
+    \label{eq:rho}
+    \rho(t) = clip(v_{min}+\lfloor\frac{t-N_{X}}{t_{inc}}\rfloor, \{v_{min}, v_{max}\})+D-\Omega
+\end{equation}
+
+$v_{min}$, $v_{max}$ and $t_{inc}$ are user defined parameters, with the constraints $-6\leq v_{min}\leq v_{max} \leq 9$ and $2^{4} \leq t_{inc} \leq 2^{11}$, where $t_{inc}$ is a power of two.
+
+\paragraph{Prediction values}
+The product of the weight vector and local difference vector gives the central local difference $\hat{d}_{z}(t)$. Here R is a user defined parameter; $max\{32, D+\Omega+2\}\leq R \leq 64$. The last thing that is needed before the output of the predictor can be calculated is the scaled predicted sample value, this is shown in equation \ref{eq:scaledpredict}.
+
+\begin{equation}
+ \Tilde{S}_{z}(t) = \begin{cases} clip(\lfloor
+\frac{\mod_{R}^{*}[\hat{d}_{z}(t)+2^{\Omega}(\sigma_{z}(t-4S_{mid})]}{2^{\Omega+1}} \rfloor+2S_{mid}+1,\{2S_{min},
+2S_{max}+1\}) & t>0 \\
+2S_{S-1}(t) & t=0, P>0, z>0 \\
+2S_{mid} & t=0 and (P=0 or z=0) \end{cases}
+\label{eq:scaledpredict}
+\end{equation}
+
+The predicted sample value is half of the scaled predicted sample value, this is used to calculate the difference between the predicted sample calue and the actual value. The difference values is used as a input for a algorithm that calculates the mapped prediction residuals $\delta_{z}(t)$, which is the output from the predictor stage.
+\paragraph{Encoder}
+
+With the sample adaptive entropy encoding, the mapped prediction residuals is assigned a variable length binary code word. The code word is based on adaptive code selection statistics, this consists of a accumulator $\Sigma_{z}(t)$ and a counter $\Gamma_{z}(t)$.
+
+The initial value of $\Sigma_{z}(1)$ is defined in \ref{eq:initiacc}.
+
+\begin{equation}
+\label{eq:initiacc}
+\Sigma_{z}(1) = \lfloor \frac{1}{2^{7}}(3\times2^{\Grave{k}_{z}+6}-49)\Gamma_{z}(t)\rfloor
+\end{equation}
+
+The initial value of the counter is $\Gamma_{z}(t) = 2^{\gamma_{0}}$, where $\gamma_{0}$ is a user defined parameter between $1\leq\gamma_{0}\leq8$. The rest of the values of the accumulator and counter is defined with algorithms using the output from the predictor as a input.
+
+The codeword for the first sample in every band is the same value as the mapped prediction residual, all other samples in each band is found with the parameters $k_{z}(t)$ and $u_{z}(t)$. $k_{z}(t) = 0 $ if $2\Gamma(t)>\Sigma_{z}(t)+\lfloor\frac{49}{2^{7}\Gamma(t)}\rfloor$, and in all other cases $k_{z}(t)$ is the largest positive integer $k_{z}(t) \leq D-2$, when equation \ref{eq:forf} i fulfilled.
+
+\begin{equation}
+    \label{eq:forf}
+    \Gamma(t)2^{k_{z}(t)} \leq \Sigma_{z}(t)+\lfloor\frac{49}{2^{7}\Gamma(t)}\rfloor
+\end{equation}
+
+% \begin{equation}
+%     \label{eq:codeword}
+%     k_{z}(t) = \begin{cases}
+%         0 & 2\Gamma(t)>\Sigma_{z}(t)+\lfloor\frac{49}{2^{7}\Gamma(t)}\rfloor\\
+%         max\{1\leq i \leq D-2 | \Gamma(t)2^{i}\leq \Sigma_{z}(t)+ \lfloor\frac{49}{2^{7}\Gamma(t)}\rfloor & otherwise
+%     \end{cases}
+% \end{equation}
+
+Where $u_{z}(t)$ is
+
+\begin{equation}
+    \label{eq:uz}
+    u_{z}(t) = \lfloor \frac{\delta(t)}{2^{k_{z}(t)}}\rfloor
+\end{equation}
+
+For samples where $u_{z}(t)<U_{max}$ the codeword consists of $u_{z}(t)$ zeros, followed by a one, followed by, followed by the $k_{z}(t)$ least significant bits of $\delta_{z}(t)$.
+
+For samples where $u_{z}(t)\geq U_{max}$, the codeword consists of $U_{max}$ zeros, followed by the D-bit representation of $\delta_{z}(t)$
+
+\subsubsection*{Full and reduced prediction}
+It is possible to use the algorithm in reduced mode, when this is used directional local differences is not used during calculations.
+
+\subsubsection*{Implementation}
+Figure \ref{fig::compressionpipeline} shows how one pipeline of a multiple pipeline implementation of the CCSDS123 algorithm looks like. The thick gray lines show the data path through the design, the first four blocks here implements the predictor stage and the last block implements the encoding stage. First in the predictor stage, the local differences are calculated, then multiplied with the weight vector and sent to the predictor block which calculates the predicted values. Then the mapped prediction residuals gets calculated, which is outputed to the encoder stage.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/compressionpipeline.png}
+	\caption{Compression implementation}
+	\label{fig::compressionpipeline}
+\end{figure}
+
+Multiple pipelined means that more samples can be processed in parallell, figure \ref{fig::multiplepipelines} shows how a four lane pipelined implementation looks like. The pixels first arrive at the sample delay block, here they get delayed until all the samples for one neighborhood has arrived, the pixels are expect to come in BIP ordering. Since central local differences is the same for each pipeline, they are stored in a storage that can be accessed by the other pipelines. The same goes for weight and accumulator values. The packer packs the data from the pipelined into specified length words and outputs them.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.8\textwidth]{images/multiplepipelines.png}
+	\caption{Multiple compression lanes}
+	\label{fig::multiplepipelines}
+\end{figure}
+
+The design can be made to process samples on the fly, this means that the samples gets streamed on the fly to the compressor, without any logic to when input data is on the input. On the fly can be used when the data rate is know, or there is no way to synchronize this, for example if it is connected directly to a camera sensor.
+
+Table \ref{tab::ccsds} shows all the parameters that need to be set for the CCSDS implementation. P is the number of previous bands to use in the difference vector. $t_{inc}$, $v_{max}$ and $v_{min}$ are the values shown in equation \ref{eq:rho} used for updating weight vectors. $\Omega$ is the weight resolution that is used in equation \ref{eq:initweight}, as a initial weight value, and the R constant is used to define the register size in equation \ref{eq:scaledpredict}.  $\gamma_{0}$ is the constant passed to the calculation of the initial value of the encoder counter and $\gamma_{*}$ is a constant that sets the counter size.  $U_{max}$ helps set the length of the codewords.
+
+\begin{table}[]
+\centering
+\label{tab::ccsds}
+\caption{CCSDS123 implementation parameters}
+\begin{tabular}{|l|l|}
+\hline
+Parameter             & Description                                          \\ \hline
+Isunsigned            & Specify if the input is unsigned or signed variables \\ \hline
+Little endian         & Specify if the output is little endian or big endian  \\ \hline
+On the fly            & Input synchronization                                \\ \hline
+Pipelines             & Number of pipelines                                  \\ \hline
+Bus width             & The width of the output words                        \\ \hline
+Nx                    & Number of pixels in x direction                      \\ \hline
+Ny                    & Number of pixels in y direction                      \\ \hline
+Nz                    & Number of bands                                      \\ \hline
+D                     & Pixel depth                                          \\ \hline
+Col oriented          & Column oriented or neighbor oriented                 \\ \hline
+P                     & Number of previous bands                             \\ \hline
+$t_{inc}$                  & Weight update scaling exponent change interval \\ \hline
+$v_{max}$                  & Weight update scaling exponent final           \\ \hline
+$v_{min}$                  & Weight update scaling exponent initial         \\ \hline
+$\Omega$ & Weight resolution                                    \\ \hline
+R                     & Register size                                        \\ \hline
+$U_{max}$                  & Unary length limit                                   \\ \hline
+$\Grave{k}_{z}$    & Accumulator initialization constant                  \\ \hline
+$\gamma_{0}$                    & Initial count exponent                               \\ \hline
+$\gamma_{*}$                    & Rescaling counter size                               \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Binning}
+To improve signal to noise ratio and reduce the image size, binning can be used. This technique takes a set of values, combines them together into a value that is representative of the whole set. For the monochrome sensor, pixels that are in the same row in the spectral direction represent different bands of the same area in spatial direction\cite{starrywonders}\cite{microscopyu}. As previously mentioned two binning methods were tested in the specialization project, median and mean binning. Mean binning finds the average value of a set while median binning finds the middle value of the sorted set. Mean binning is the better method to find the central value of a set, but median is more rigid against noise\cite{clinfo}\cite{stattrek}.
+
+A good enough method to do mean binning was found in the specialization project, but not for median binning. The different tested sorting algorithms were random  selection,  insertion  sort,
+quick sort, heap sort and counting sort. These were chosen because they are different types of algorithms based on different principles, more information on them can be found in the book Introduction To Algorithms\cite{cormen}. However, one type of algorithm that were not tested, was a parallel algorithm.
+
+A parallel sorting algorithm often used, is bitonic merge sort. It has a running time of  $O(n\log ^{2}(n))$ and is a sorting network\cite{sort1}\cite{sort2}. A sorting network is a sorting algorithm where the comparisons is not data dependent, but rather comparisons are made in a predefined sequence. How this sequence looks like for 16 inputs is shown in figure \ref{fig::bitonicmergenetwork}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/bitonicMerge.PNG}
+	\caption{}
+% 	https://en.wikipedia.org/wiki/Bitonic_sorter
+	\label{fig::bitonicmergenetwork}
+\end{figure}
+
+The input to a bitonic merge network is a bitonic sequence, this means that one half of a sequence must be in increasing order and the other half in decreasing order. The network then compares corresponding elements of the two halves with each other and moves elements according to the outcome of the comparison. In figure \ref{fig::bitonicmergenetwork}, the arrow points to where the higher value of a comparison moves to. This network consists of four stages, where stage one sorts 2x8 elements, stage two sorts 4x4 elements, stage three sorts 8x2 elements and stage four sorts 18x1 elements. The arrow directions points so that each input to each stage is a bitonic sequence.
+
+\section{Testing of camera}
+
+The Zedboard was used for testing in the specialization project, to have consistency this is being used for testing of the new camera in this project as well. A block diagram of the test setup in the processing system is shown on figure \ref{fig::design1}. A OS is built with petalinux tools and the ueye driver is installed on it the same way as in the specialization project.
+
+\begin{figure}
+\begin{tikzpicture}
+
+\node [rectangle, fill = white, draw=black, minimum height = 8cm, text width = 8cm, rounded corners] (sw) at (6,0) {};
+\node[] at (6,3.7) {Embedded Linux};
+\node[] at (0,3.5) {Trigger signal};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (camera) at (0,0) {Camera};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (driver) at (4,0) {Driver};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (program) at (8,0) {C++ program};
+\node [rectangle, fill = hue, draw=black, minimum height = .2cm, text width = 2cm, rounded corners, text centered, rotate=90] (interface) at (7,0) {C-interface};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (mem) at (12,0) {Memory};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (storage) at (12,-3) {Storage};
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (fpga) at (12,3) {FPGA};
+
+\path [draw, ->, thick, -latex] (0,3) -- (camera) ;
+\path [draw, ->, thick, -latex] (camera) -- node [above] {GigE} (driver);
+\path [draw, ->, thick, -latex] (driver) to[out=45,in=135] (mem);
+\path [draw, ->, thick, -latex] (driver) -- (camera);
+\path [draw, ->, thick, -latex] (driver) -- (program);
+\path [draw, ->, thick, -latex] (program) -- (driver);
+\path [draw, ->, thick, -latex] (program) -- (mem);
+\path [draw, ->, thick, -latex] (mem) -- (program);
+\path [draw, ->, thick, -latex] (program) to[out=270,in=180] (storage);
+\path [draw, ->, thick, -latex] (mem) -- (fpga);
+%\path [draw, ->, -latex, dashed] (tekst) -- (6.4, -1.1);
+\end{tikzpicture}
+\caption{System overview}
+\label{fig::design1}
+\end{figure}
+
+The same C++ testprogram as in the specialization project is being used, the program flow for this is shown on figure \ref{fig::design2}. The first thing it does, is initialize the camera and driver with parameters, such as fps, bit-depth, resolution, exposure time and allocating memory. Then a signal is sent to the driver so that image acquisition can start.
+
+The camera captures images continuously, the driver store the images in memory areas allocated for it in the initializing phase. Pointers to the next image is fetched from the driver and the image is binned, then moved to a different area in memory. After the image is binned and moved, the memory pointed to must be freed so the driver can use it again. This loops until all the frames is captured, then either a BIL, BIP or BSQ cube is created and stored.
+
+
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (Init) at (0,0) {Initialize};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (start) at (0,-2.5) {Start image capturing};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (pointer) at (0,-5) {Get pointer to memory};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (Bin) at (0,-7.5) {Binning};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (free) at (0,-10) {Free memory};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (cube) at (0,-12.5) {Create cube};
+
+\node [ellipse, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (store) at (0,-15) {Store cube};
+
+
+\path [draw, ->, thick, -latex] (Init) -- (start);
+\path [draw, ->, thick, -latex] (start) -- (pointer);
+\path [draw, ->, thick, -latex] (pointer) -- (Bin);
+\path [draw, ->, thick, -latex] (Bin) -- (free);
+\path [draw, ->, thick, -latex] (free) -- node [right] {No more images} (cube);
+\path [draw, ->, thick, -latex] (cube) -- (store);
+\path [draw, ->, thick, -latex] (free)  to[out=0,in=0] node [right] {More images} (pointer);
+
+%\path [draw, ->, -latex, dashed] (tekst) -- (6.4, -1.1);
+\end{tikzpicture}
+\caption{Image aqusition flow}
+\label{fig::design2}
+\end{figure}
+
+\subsection{Binning}
+To bin the images, 16 input bitonic network is used, for this to work with a binning factor of 12, zero padding can be used, this wont affect the execution time since this algorithm has a predefined sequence. The network gets implemented with NEON SIMD instructions.
+
+The first and second stage from figure \ref{fig::bitonicmergenetwork} is done with four vectors with four lanes, as shown on figure \ref{fig:fourlanes}, these are sorted vertically lanewise, so that they are in ascending order downward, V0 does not have to be sorted, since this is the register used for zero padding, there are only zeros in this register. The registers then get transposed, so that each vector have their lanes sorted in ascending order. To do the transposing, two four lane vectors is concatenated into a eight lane vector, then these are zipped two times, this is shown on figure \ref{fig::shiffle1}
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\draw[step=0.5cm,color=gray] (-1,.75) rectangle (-.5,1.25);
+\draw[step=0.5cm,color=gray] (-.5,.75) rectangle (0,1.25);
+\draw[step=0.5cm,color=gray] (0,.75) rectangle (.5,1.25);
+\draw[step=0.5cm,color=gray] (.5,.75) rectangle (1,1.25);
+\node at (-0.75,+1) {0};
+\node at (-0.25,+1) {0};
+\node at (+0.25,+1) {0};
+\node at (+0.75,+1) {0};
+
+\draw[step=0.5cm,color=gray] (-1,0) rectangle (-.5,.5);
+\draw[step=0.5cm,color=gray] (-.5,.0) rectangle (0,.5);
+\draw[step=0.5cm,color=gray] (0,.0) rectangle (.5,.5);
+\draw[step=0.5cm,color=gray] (.5,.0) rectangle (1,.5);
+\node at (-0.75,+0.25) {i0};
+\node at (-0.25,+0.25) {i1};
+\node at (+0.25,+0.25) {i2};
+\node at (+0.75,+0.25) {i3};
+
+\draw[step=0.5cm,color=gray] (-1,-.5) rectangle (-.5,0);
+\draw[step=0.5cm,color=gray] (-.5,-.5) rectangle (0,0);
+\draw[step=0.5cm,color=gray] (0,-.5) rectangle (.5,0);
+\draw[step=0.5cm,color=gray] (.5,-.5) rectangle (1,0);
+\node at (-0.75,-0.25) {j0};
+\node at (-0.25,-0.25) {j1};
+\node at (+0.25,-0.25) {j2};
+\node at (+0.75,-0.25) {j3};
+
+\draw[step=0.5cm,color=gray] (-1,-1) rectangle (-.5,-.5);
+\draw[step=0.5cm,color=gray] (-.5,-1) rectangle (0,-.5);
+\draw[step=0.5cm,color=gray] (0,-1) rectangle (.5,-.5);
+\draw[step=0.5cm,color=gray] (.5,-1) rectangle (1,-.5);
+\node at (-0.75,-0.75) {k0};
+\node at (-0.25,-0.75) {k1};
+\node at (+0.25,-0.75) {k2};
+\node at (+0.75,-0.75) {k3};
+
+\node at (-1.3,1) {V0};
+\node at (-1.3,.25) {V1};
+\node at (-1.3,-.25) {V2};
+\node at (-1.3,-.75) {V3};
+
+\draw[red] (.75,-.25) ellipse (.3cm and 1cm);
+
+
+%%%%LINE
+\path [draw, ->, thick, -latex] (1.25,0) -- node [below] {Transpose} (3.7,0);
+
+%%%%Matrix right
+
+
+\draw[step=0.5cm,color=gray] (4.25,.5) rectangle (4.75,1);
+\draw[step=0.5cm,color=gray] (4.75,.5) rectangle (5.25,1);
+\draw[step=0.5cm,color=gray] (5.25,.5) rectangle (5.75,1);
+\draw[step=0.5cm,color=gray] (5.75,.5) rectangle (6.25,1);
+\node at (4.5,+.75) {0};
+\node at (5,+.75) {i0};
+\node at (5.5,+.75) {j0};
+\node at (6,+.75) {k0};
+
+\draw[step=0.5cm,color=gray] (4.25,0) rectangle (4.75,.5);
+\draw[step=0.5cm,color=gray] (4.75,.0) rectangle (5.25,.5);
+\draw[step=0.5cm,color=gray] (5.25,.0) rectangle (5.75,.5);
+\draw[step=0.5cm,color=gray] (5.75,.0) rectangle (6.25,.5);
+\node at (4.5,+0.25) {0};
+\node at (5,+0.25) {i1};
+\node at (5.5,+0.25) {j1};
+\node at (6,+0.25) {k1};
+
+\draw[step=0.5cm,color=gray] (4.25,-.5) rectangle (4.75,0);
+\draw[step=0.5cm,color=gray] (4.75,-.5) rectangle (5.25,0);
+\draw[step=0.5cm,color=gray] (5.25,-.5) rectangle (5.75,0);
+\draw[step=0.5cm,color=gray] (5.75,-.5) rectangle (6.25,0);
+\node at (4.5,-0.25) {0};
+\node at (5,-0.25) {i2};
+\node at (5.5,-0.25) {j2};
+\node at (6,-0.25) {k2};
+
+\draw[step=0.5cm,color=gray] (4.25,-1) rectangle (4.75,-.5);
+\draw[step=0.5cm,color=gray] (4.75,-1) rectangle (5.25,-.5);
+\draw[step=0.5cm,color=gray] (5.25,-1) rectangle (5.75,-.5);
+\draw[step=0.5cm,color=gray] (5.75,-1) rectangle (6.25,-.5);
+\node at (4.5,-0.75) {0};
+\node at (5,-0.75) {i3};
+\node at (5.5,-0.75) {j3};
+\node at (6,-0.75) {k3};
+
+\node at (4,.75) {V0};
+\node at (4,.25) {V1};
+\node at (4,-.25) {V2};
+\node at (4,-.75) {V3};
+
+\end{tikzpicture}
+
+\captionof{figure}{Stage 1 and 2}
+\label{fig:fourlanes}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\draw[step=0.5cm,color=gray] (0,1.5) rectangle (.5,2);
+\draw[step=0.5cm,color=gray] (.5,1.5) rectangle (1,2);
+\draw[step=0.5cm,color=gray] (1,1.5) rectangle (1.5,2);
+\draw[step=0.5cm,color=gray] (1.5,1.5) rectangle (2,2);
+\draw[step=0.5cm,color=gray] (2,1.5) rectangle (2.5,2);
+\draw[step=0.5cm,color=gray] (2.5,1.5) rectangle (3,2);
+\draw[step=0.5cm,color=gray] (3,1.5) rectangle (3.5,2);
+\draw[step=0.5cm,color=gray] (3.5,1.5) rectangle (4,2);
+
+\draw[step=0.5cm,color=gray] (0,0) rectangle (.5,.5);
+\draw[step=0.5cm,color=gray] (.5,0) rectangle (1,.5);
+\draw[step=0.5cm,color=gray] (1,0) rectangle (1.5,.5);
+\draw[step=0.5cm,color=gray] (1.5,0) rectangle (2,.5);
+\draw[step=0.5cm,color=gray] (2,0) rectangle (2.5,.5);
+\draw[step=0.5cm,color=gray] (2.5,0) rectangle (3,.5);
+\draw[step=0.5cm,color=gray] (3,0) rectangle (3.5,.5);
+\draw[step=0.5cm,color=gray] (3.5,0) rectangle (4,.5);
+
+\draw[step=0.5cm,color=gray] (3.75,.75) rectangle (5,1.25);
+
+\draw[->] (4,1.75) to[out=0,in=90] (4.25,1.25);
+\draw[->] (4.5,1.25) to[out=90,in=180] (4.75,1.75);
+
+\draw[->] (4,.25) to[out=0,in=-90] (4.25,.75);
+\draw[->] (4.5,.75) to[out=-90,in=180] (4.75,.25);
+
+\draw[step=0.5cm,color=gray] (0+4.75,1.5) rectangle (.5+4.75,2);
+\draw[step=0.5cm,color=gray] (.5+4.75,1.5) rectangle (1+4.75,2);
+\draw[step=0.5cm,color=gray] (1+4.75,1.5) rectangle (1.5+4.75,2);
+\draw[step=0.5cm,color=gray] (1.5+4.75,1.5) rectangle (2+4.75,2);
+\draw[step=0.5cm,color=gray] (2+4.75,1.5) rectangle (2.5+4.75,2);
+\draw[step=0.5cm,color=gray] (2.5+4.75,1.5) rectangle (3+4.75,2);
+\draw[step=0.5cm,color=gray] (3+4.75,1.5) rectangle (3.5+4.75,2);
+\draw[step=0.5cm,color=gray] (3.5+4.75,1.5) rectangle (4+4.75,2);
+
+\draw[step=0.5cm,color=gray] (0+4.75,0) rectangle (.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (.5+4.75,0) rectangle (1+4.75,.5);
+\draw[step=0.5cm,color=gray] (1+4.75,0) rectangle (1.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (1.5+4.75,0) rectangle (2+4.75,.5);
+\draw[step=0.5cm,color=gray] (2+4.75,0) rectangle (2.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (2.5+4.75,0) rectangle (3+4.75,.5);
+\draw[step=0.5cm,color=gray] (3+4.75,0) rectangle (3.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (3.5+4.75,0) rectangle (4+4.75,.5);
+
+\draw[step=0.5cm,color=gray] (3.75+4.75,.75) rectangle (5+4.75,1.25);
+
+\draw[->] (4+4.75,1.75) to[out=0,in=90] (4.25+4.75,1.25);
+\draw[->] (4.5+4.75,1.25) to[out=90,in=180] (4.75+4.75,1.75);
+
+\draw[->] (4+4.75,.25) to[out=0,in=-90] (4.25+4.75,.75);
+\draw[->] (4.5+4.75,.75) to[out=-90,in=180] (4.75+4.75,.25);
+
+\draw[step=0.5cm,color=gray] (0+4.75+4.75,1.5) rectangle (.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (.5+4.75+4.75,1.5) rectangle (1+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (1+4.75+4.75,1.5) rectangle (1.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (1.5+4.75+4.75,1.5) rectangle (2+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (2+4.75+4.75,1.5) rectangle (2.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (2.5+4.75+4.75,1.5) rectangle (3+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (3+4.75+4.75,1.5) rectangle (3.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (3.5+4.75+4.75,1.5) rectangle (4+4.75+4.75,2);
+
+\draw[step=0.5cm,color=gray] (0+4.75+4.75,0) rectangle (.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (.5+4.75+4.75,0) rectangle (1+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (1+4.75+4.75,0) rectangle (1.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (1.5+4.75+4.75,0) rectangle (2+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (2+4.75+4.75,0) rectangle (2.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (2.5+4.75+4.75,0) rectangle (3+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (3+4.75+4.75,0) rectangle (3.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (3.5+4.75+4.75,0) rectangle (4+4.75+4.75,.5);
+
+\node at (+0.25,+1.75) {\footnotesize{0}};
+\node at (+0.75,+1.75) {\footnotesize{0}};
+\node at (1.25,+1.75) {\footnotesize{0}};
+\node at (1.75,+1.75) {\footnotesize{0}};
+\node at (2.25,+1.75) {\footnotesize{I0}};
+\node at (2.75,+1.75) {\footnotesize{I1}};
+\node at (3.25,+1.75) {\footnotesize{I2}};
+\node at (3.75,+1.75) {\footnotesize{I3}};
+
+\node at (+0.25,+.25) {\footnotesize{J0}};
+\node at (+0.75,.25) {\footnotesize{J1}};
+\node at (1.25,.25) {\footnotesize{J2}};
+\node at (1.75,.25) {\footnotesize{J3}};
+\node at (2.25,.25) {\footnotesize{K0}};
+\node at (2.75,.25) {\footnotesize{K1}};
+\node at (3.25,.25) {\footnotesize{K2}};
+\node at (3.75,.25) {\footnotesize{K3}};
+
+
+\node at (+0.25+4.75,+1.75) {\footnotesize{0}};
+\node at (+0.75+4.75,+1.75) {\footnotesize{J0}};
+\node at (1.25+4.75,+1.75) {\footnotesize{0}};
+\node at (1.75+4.75,+1.75) {\footnotesize{J1}};
+\node at (2.25+4.75,+1.75) {\footnotesize{0}};
+\node at (2.75+4.75,+1.75) {\footnotesize{J2}};
+\node at (3.25+4.75,+1.75) {\footnotesize{0}};
+\node at (3.75+4.75,+1.75) {\footnotesize{J3}};
+
+\node at (+0.25+4.75,+.25) {\footnotesize{I0}};
+\node at (+0.75+4.75,.25) {\footnotesize{K0}};
+\node at (1.25+4.75,.25) {\footnotesize{I1}};
+\node at (1.75+4.75,.25) {\footnotesize{K1}};
+\node at (2.25+4.75,.25) {\footnotesize{I2}};
+\node at (2.75+4.75,.25) {\footnotesize{K2}};
+\node at (3.25+4.75,.25) {\footnotesize{I3}};
+\node at (3.75+4.75,.25) {\footnotesize{K3}};
+
+
+\node at (+0.25+4.75+4.75,+1.75) {\footnotesize{0}};
+\node at (+0.75+4.75+4.75,+1.75) {\footnotesize{I0}};
+\node at (1.25+4.75+4.75,+1.75) {\footnotesize{J0}};
+\node at (1.75+4.75+4.75,+1.75) {\footnotesize{K0}};
+\node at (2.25+4.75+4.75,+1.75) {\footnotesize{0}};
+\node at (2.75+4.75+4.75,+1.75) {\footnotesize{I1}};
+\node at (3.25+4.75+4.75,+1.75) {\footnotesize{J1}};
+\node at (3.75+4.75+4.75,+1.75) {\footnotesize{K1}};
+
+\node at (+0.25+4.75+4.75,+.25) {\footnotesize{0}};
+\node at (+0.75+4.75+4.75,.25) {\footnotesize{I2}};
+\node at (1.25+4.75+4.75,.25) {\footnotesize{J2}};
+\node at (1.75+4.75+4.75,.25) {\footnotesize{K2}};
+\node at (2.25+4.75+4.75,.25) {\footnotesize{0}};
+\node at (2.75+4.75+4.75,.25) {\footnotesize{I3}};
+\node at (3.25+4.75+4.75,.25) {\footnotesize{J3}};
+\node at (3.75+4.75+4.75,.25) {\footnotesize{K3}};
+
+\node at (4.4,1) {\footnotesize{Zip}};
+\node at (4.4+4.75,1) {\footnotesize{Zip}};
+
+\end{tikzpicture}
+
+\captionof{figure}{Two zip instructions}
+\label{fig:shuffle1}
+\end{figure}
+
+
+Now one of the eight lane vectors reverses the two four lane sub elements, these two eight lane vectors is the inputs for stage three. This stage of the network sorts 8x2 elements in opposite directions, each half of the eight lane vectors are each of these 8x2 elements. The vectors is compared and a max and a min vector is produced, as shown in figure \ref{fig:stage3input}. Instructions to shuffle the max and min values to the right lane and vectors is done, for the next comparison. This is repeated another time, then the last comparison is done, this produces a high and a low vector which is zipped.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\filldraw[fill=YellowGreen] (-1,.75) rectangle (1,1.25);
+\filldraw[fill=ProcessBlue] (1,.75) rectangle (3,1.25);
+
+\draw[step=0.5cm,color=gray] (-1,.75) rectangle (-.5,1.25);
+\draw[step=0.5cm,color=gray] (-.5,.75) rectangle (0,1.25);
+\draw[step=0.5cm,color=gray] (0,.75) rectangle (.5,1.25);
+\draw[step=0.5cm,color=gray] (.5,.75) rectangle (1,1.25);
+
+\draw[step=0.5cm,color=gray] (1,.75) rectangle (1.5,1.25);
+\draw[step=0.5cm,color=gray] (1.5,.75) rectangle (2,1.25);
+\draw[step=0.5cm,color=gray] (2,.75) rectangle (2.5,1.25);
+\draw[step=0.5cm,color=gray] (2.5,.75) rectangle (3,1.25);
+\node at (-0.75,+1) {\footnotesize{k0}};
+\node at (-0.25,+1) {\footnotesize{j0}};
+\node at (+0.25,+1) {\footnotesize{i0}};
+\node at (+0.75,+1) {\footnotesize{0}};
+\node at (1.25,+1) {\footnotesize{k1}};
+\node at (1.75,+1) {\footnotesize{j1}};
+\node at (2.25,+1) {\footnotesize{i1}};
+\node at (2.75,+1) {\footnotesize{0}};
+
+
+\filldraw[fill=YellowGreen] (-1,0) rectangle (1,.5);
+\filldraw[fill=ProcessBlue] (1,.0) rectangle (3,.5);
+
+\draw[step=0.5cm,color=gray] (-1,0) rectangle (-.5,.5);
+\draw[step=0.5cm,color=gray] (-.5,.0) rectangle (0,.5);
+\draw[step=0.5cm,color=gray] (0,.0) rectangle (.5,.5);
+\draw[step=0.5cm,color=gray] (.5,.0) rectangle (1,.5);
+
+\draw[step=0.5cm,color=gray] (1,0) rectangle (1.5,.5);
+\draw[step=0.5cm,color=gray] (1.5,.0) rectangle (2,.5);
+\draw[step=0.5cm,color=gray] (2,.0) rectangle (2.5,.5);
+\draw[step=0.5cm,color=gray] (2.5,.0) rectangle (3,.5);
+\node at (-0.75,+0.25) {\footnotesize{0}};
+\node at (-0.25,+0.25) {\footnotesize{i2}};
+\node at (+0.25,+0.25) {\footnotesize{j2}};
+\node at (+0.75,+0.25) {\footnotesize{k2}};
+\node at (1.25,+0.25) {\footnotesize{0}};
+\node at (1.75,+0.25) {\footnotesize{i3}};
+\node at (2.25,+0.25) {\footnotesize{j3}};
+\node at (2.75,+0.25) {\footnotesize{k3}};
+
+
+\filldraw[fill=YellowGreen] (-1,-.75) rectangle (1,.-.25);
+\filldraw[fill=ProcessBlue] (1,-.75) rectangle (3,-.25);
+
+\draw[step=0.5cm,color=gray] (-1,-.75) rectangle (-.5,-.25);
+\draw[step=0.5cm,color=gray] (-.5,-.75) rectangle (0,-.25);
+\draw[step=0.5cm,color=gray] (0,-.75) rectangle (.5,-.25);
+\draw[step=0.5cm,color=gray] (.5,-.75) rectangle (1,-.25);
+
+\draw[step=0.5cm,color=gray] (1,-.75) rectangle (1.5,-.25);
+\draw[step=0.5cm,color=gray] (1.5,-.75) rectangle (2,-.25);
+\draw[step=0.5cm,color=gray] (2,-.75) rectangle (2.5,-.25);
+\draw[step=0.5cm,color=gray] (2.5,-.75) rectangle (3,-.25);
+\node at (-0.75,-.5) {\footnotesize{H0}};
+\node at (-0.25,-.5) {\footnotesize{H1}};
+\node at (+0.25,-.5) {\footnotesize{H2}};
+\node at (+0.75,-.5) {\footnotesize{H3}};
+\node at (1.25,-.5) {\footnotesize{H4}};
+\node at (1.75,-.5) {\footnotesize{H5}};
+\node at (2.25,-.5) {\footnotesize{H6}};
+\node at (2.75,-.5) {\footnotesize{H7}};
+
+
+\filldraw[fill=YellowGreen] (-1,-1.5) rectangle (1,-1);
+\filldraw[fill=ProcessBlue] (1,-1.5) rectangle (3,-1);
+
+\draw[step=0.5cm,color=gray] (-1,-1.5) rectangle (-.5,-1);
+\draw[step=0.5cm,color=gray] (-.5,-1.5) rectangle (0,-1);
+\draw[step=0.5cm,color=gray] (0,-1.5) rectangle (.5,-1);
+\draw[step=0.5cm,color=gray] (.5,-1.5) rectangle (1,-1);
+
+\draw[step=0.5cm,color=gray] (1,-1.5) rectangle (1.5,-1);
+\draw[step=0.5cm,color=gray] (1.5,-1.5) rectangle (2,-1);
+\draw[step=0.5cm,color=gray] (2,-1.5) rectangle (2.5,-1);
+\draw[step=0.5cm,color=gray] (2.5,-1.5) rectangle (3,-1);
+\node at (-0.75,-1.25) {\footnotesize{L0}};
+\node at (-0.25,-1.25) {\footnotesize{L1}};
+\node at (+0.25,-1.25) {\footnotesize{L2}};
+\node at (+0.75,-1.25) {\footnotesize{L3}};
+\node at (1.25,-1.25) {\footnotesize{L4}};
+\node at (1.75,-1.25) {\footnotesize{L5}};
+\node at (2.25,-1.25) {\footnotesize{L6}};
+\node at (2.75,-1.25) {\footnotesize{L7}};
+
+
+\node at (3.25,.6) {$<$};
+\node at (3.25,-.2) {$=$};
+
+\node at (-1.3,1) {V0};
+\node at (-1.3,.25) {V1};
+\node at (-1.5,-.5) {High};
+\node at (-1.5,-1.25) {Low};
+
+%%Shuffle
+\draw[->] (.75,-1.75) .. controls (.75,-2.2) and (1.25,-1.8) .. (1.25,-2.25);
+\draw[->] (1.25,-1.75) .. controls (1.25,-2.2) and (.75,-1.8).. (.75,-2.25);
+\node at (2,-2) {Shuffle};
+%% Result bottpm  left
+
+\filldraw[fill=YellowGreen] (-1,-3) rectangle (1,-2.5);
+\filldraw[fill=ProcessBlue] (1,-3) rectangle (3,-2.5);
+
+\draw[step=0.5cm,color=gray] (-1,-3) rectangle (-.5,-2.5);
+\draw[step=0.5cm,color=gray] (-.5,-3) rectangle (0,-2.5);
+\draw[step=0.5cm,color=gray] (0,-3) rectangle (.5,-2.5);
+\draw[step=0.5cm,color=gray] (.5,-3) rectangle (1,-2.5);
+
+\draw[step=0.5cm,color=gray] (1,-3) rectangle (1.5,-2.5);
+\draw[step=0.5cm,color=gray] (1.5,-3) rectangle (2,-2.5);
+\draw[step=0.5cm,color=gray] (2,-3) rectangle (2.5,-2.5);
+\draw[step=0.5cm,color=gray] (2.5,-3) rectangle (3,-2.5);
+\node at (-0.75,-2.75) {\footnotesize{L0}};
+\node at (-0.25,-2.75) {\footnotesize{L1}};
+\node at (+0.25,-2.75) {\footnotesize{H0}};
+\node at (+0.75,-2.75) {\footnotesize{H1}};
+\node at (1.25,-2.75) {\footnotesize{L4}};
+\node at (1.75,-2.75) {\footnotesize{L5}};
+\node at (2.25,-2.75) {\footnotesize{H4}};
+\node at (2.75,-2.75) {\footnotesize{H5}};
+
+
+\filldraw[fill=YellowGreen] (-1,-3.75) rectangle (1,-3.25);
+\filldraw[fill=ProcessBlue] (1,-3.75) rectangle (3,-3.25);
+
+\draw[step=0.5cm,color=gray] (-1,-3.75) rectangle (-.5,-3.25);
+\draw[step=0.5cm,color=gray] (-.5,-3.75) rectangle (0,-3.25);
+\draw[step=0.5cm,color=gray] (0,-3.75) rectangle (.5,-3.25);
+\draw[step=0.5cm,color=gray] (.5,-3.75) rectangle (1,-3.25);
+
+\draw[step=0.5cm,color=gray] (1,-3.75) rectangle (1.5,-3.25);
+\draw[step=0.5cm,color=gray] (1.5,-3.75) rectangle (2,-3.25);
+\draw[step=0.5cm,color=gray] (2,-3.75) rectangle (2.5,-3.25);
+\draw[step=0.5cm,color=gray] (2.5,-3.75) rectangle (3,-3.25);
+\node at (-0.75,-3.5) {\footnotesize{L2}};
+\node at (-0.25,-3.5) {\footnotesize{L3}};
+\node at (+0.25,-3.5) {\footnotesize{H2}};
+\node at (+0.75,-3.5) {\footnotesize{H3}};
+\node at (1.25,-3.5) {\footnotesize{L6}};
+\node at (1.75,-3.5) {\footnotesize{L7}};
+\node at (2.25,-3.5) {\footnotesize{H6}};
+\node at (2.75,-3.5) {\footnotesize{H7}};
+
+
+\node at (3.25,-3.1) {$<$};
+
+\node at (-1.3,-2.75) {V0};
+\node at (-1.3,-3.75) {V1};
+
+
+\draw[->] (3.5,-3.1) .. controls (4.8,-3.1) and (3.5,.5) .. (4.8,.5);
+
+%% Result top right
+
+\filldraw[fill=YellowGreen] (6,.75) rectangle (8,1.25);
+\filldraw[fill=ProcessBlue] (8,.75) rectangle (10,1.25);
+
+
+\draw[step=0.5cm,color=gray] (6,.75) rectangle (6.5,1.25);
+\draw[step=0.5cm,color=gray] (6.5,.75) rectangle (7,1.25);
+\draw[step=0.5cm,color=gray] (7,.75) rectangle (7.5,1.25);
+\draw[step=0.5cm,color=gray] (7.5,.75) rectangle (8,1.25);
+
+\draw[step=0.5cm,color=gray] (8,.75) rectangle (8.5,1.25);
+\draw[step=0.5cm,color=gray] (8.5,.75) rectangle (9,1.25);
+\draw[step=0.5cm,color=gray] (9,.75) rectangle (9.5,1.25);
+\draw[step=0.5cm,color=gray] (9.5,.75) rectangle (10,1.25);
+\node at (6.25,+1) {\footnotesize{H0}};
+\node at (6.75,+1) {\footnotesize{H1}};
+\node at (7.25,+1) {\footnotesize{H2}};
+\node at (7.75,+1) {\footnotesize{H3}};
+\node at (8.25,+1) {\footnotesize{H4}};
+\node at (8.75,+1) {\footnotesize{H5}};
+\node at (9.25,+1) {\footnotesize{H6}};
+\node at (9.75,+1) {\footnotesize{H7}};
+
+
+\filldraw[fill=YellowGreen] (6,0) rectangle (8,.5);
+\filldraw[fill=ProcessBlue] (8,0) rectangle (10,.5);
+
+\draw[step=0.5cm,color=gray] (6,0) rectangle (6.5,.5);
+\draw[step=0.5cm,color=gray] (6.5,.0) rectangle (7,.5);
+\draw[step=0.5cm,color=gray] (7,.0) rectangle (7.5,.5);
+\draw[step=0.5cm,color=gray] (7.5,.0) rectangle (8,.5);
+
+\draw[step=0.5cm,color=gray] (8,0) rectangle (8.5,.5);
+\draw[step=0.5cm,color=gray] (8.5,.0) rectangle (9,.5);
+\draw[step=0.5cm,color=gray] (9,.0) rectangle (9.5,.5);
+\draw[step=0.5cm,color=gray] (9.5,.0) rectangle (10,.5);
+\node at (6.25,.25) {\footnotesize{L0}};
+\node at (6.75,.25) {\footnotesize{L1}};
+\node at (7.25,.25) {\footnotesize{L2}};
+\node at (7.75,.25) {\footnotesize{L3}};
+\node at (8.25,.25) {\footnotesize{L4}};
+\node at (8.75,.25) {\footnotesize{L5}};
+\node at (9.25,.25) {\footnotesize{L6}};
+\node at (9.75,.25) {\footnotesize{L7}};
+
+\node at (10.25,.6) {$<$};
+
+\node at (5.5,1) {High};
+\node at (5.5,.25) {Low};
+
+%%Shuffle right
+\draw[->] (7.75,-.25) .. controls (7.75,-.7) and (8.25,-.3) .. (8.25,-.75);
+\draw[->] (8.25,-.25) .. controls (8.25,-.7) and (7.75,-.3).. (7.75,-.75);
+\node at (9,-.5) {Shuffle};
+%% Shuffled middle right
+
+\filldraw[fill=YellowGreen] (6,-1.5) rectangle (8,-1);
+\filldraw[fill=ProcessBlue] (8,-1.5) rectangle (10,-1);
+
+\draw[step=0.5cm,color=gray] (6,-1.5) rectangle (6.5,-1);
+\draw[step=0.5cm,color=gray] (6.5,-1.5) rectangle (7,-1);
+\draw[step=0.5cm,color=gray] (7,-1.5) rectangle (7.5,-1);
+\draw[step=0.5cm,color=gray] (7.5,-1.5) rectangle (8,-1);
+
+\draw[step=0.5cm,color=gray] (8,-1.5) rectangle (8.5,-1);
+\draw[step=0.5cm,color=gray] (8.5,-1.5) rectangle (9,-1);
+\draw[step=0.5cm,color=gray] (9,-1.5) rectangle (9.5,-1);
+\draw[step=0.5cm,color=gray] (9.5,-1.5) rectangle (10,-1);
+\node at (6.25,-1.25) {\footnotesize{L0}};
+\node at (6.75,-1.25) {\footnotesize{H0}};
+\node at (7.25,-1.25) {\footnotesize{L2}};
+\node at (7.75,-1.25) {\footnotesize{H2}};
+\node at (8.25,-1.25) {\footnotesize{L4}};
+\node at (8.75,-1.25) {\footnotesize{H4}};
+\node at (9.25,-1.25) {\footnotesize{L6}};
+\node at (9.75,-1.25) {\footnotesize{H6}};
+
+
+\filldraw[fill=YellowGreen] (6,-2.25) rectangle (8,-1.75);
+\filldraw[fill=ProcessBlue] (8,-2.25) rectangle (10,-1.75);
+
+\draw[step=0.5cm,color=gray] (6,-2.25) rectangle (6.5,-1.75);
+\draw[step=0.5cm,color=gray] (6.5,-2.25) rectangle (7,-1.75);
+\draw[step=0.5cm,color=gray] (7,-2.25) rectangle (7.5,-1.75);
+\draw[step=0.5cm,color=gray] (7.5,-2.25) rectangle (8,-1.75);
+
+\draw[step=0.5cm,color=gray] (8,-2.25) rectangle (8.5,-1.75);
+\draw[step=0.5cm,color=gray] (8.5,-2.25) rectangle (9,-1.75);
+\draw[step=0.5cm,color=gray] (9,-2.25) rectangle (9.5,-1.75);
+\draw[step=0.5cm,color=gray] (9.5,-2.25) rectangle (10,-1.75);
+\node at (6.25,-2) {\footnotesize{L1}};
+\node at (6.75,-2) {\footnotesize{H1}};
+\node at (7.25,-2) {\footnotesize{L3}};
+\node at (7.75,-2) {\footnotesize{H3}};
+\node at (8.25,-2) {\footnotesize{L5}};
+\node at (8.75,-2) {\footnotesize{H5}};
+\node at (9.25,-2) {\footnotesize{L7}};
+\node at (9.75,-2) {\footnotesize{H7}};
+
+\node at (10.25,-1.6) {$<$};
+
+\node at (5.5,-1.25) {V0};
+\node at (5.5,-2) {V1};
+
+%%%Result bottom right
+\filldraw[fill=YellowGreen] (6,-3) rectangle (8,-2.5);
+\filldraw[fill=ProcessBlue] (8,-3) rectangle (10,-2.5);
+
+\draw[step=0.5cm,color=gray] (6,-3) rectangle (6.5,-2.5);
+\draw[step=0.5cm,color=gray] (6.5,-3) rectangle (7,-2.5);
+\draw[step=0.5cm,color=gray] (7,-3) rectangle (7.5,-2.5);
+\draw[step=0.5cm,color=gray] (7.5,-3) rectangle (8,-2.5);
+
+\draw[step=0.5cm,color=gray] (8,-3) rectangle (8.5,-2.5);
+\draw[step=0.5cm,color=gray] (8.5,-3) rectangle (9,-2.5);
+\draw[step=0.5cm,color=gray] (9,-3) rectangle (9.5,-2.5);
+\draw[step=0.5cm,color=gray] (9.5,-3) rectangle (10,-2.5);
+
+\node at (6.25,-2.75) {\footnotesize{H0}};
+\node at (6.75,-2.75) {\footnotesize{H1}};
+\node at (7.25,-2.75) {\footnotesize{H2}};
+\node at (7.75,-2.75) {\footnotesize{H3}};
+\node at (8.25,-2.75) {\footnotesize{H4}};
+\node at (8.75,-2.75) {\footnotesize{H5}};
+\node at (9.25,-2.75) {\footnotesize{H6}};
+\node at (9.75,-2.75) {\footnotesize{H7}};
+
+
+
+\filldraw[fill=YellowGreen] (6,-3.75) rectangle (8,-3.25);
+\filldraw[fill=ProcessBlue] (8,-3.75) rectangle (10,-3.25);
+
+\draw[step=0.5cm,color=gray] (6,-3.75) rectangle (6.5,-3.25);
+\draw[step=0.5cm,color=gray] (6.5,-3.75) rectangle (7,-3.25);
+\draw[step=0.5cm,color=gray] (7,-3.75) rectangle (7.5,-3.25);
+\draw[step=0.5cm,color=gray] (7.5,-3.75) rectangle (8,-3.25);
+
+\draw[step=0.5cm,color=gray] (8,-3.75) rectangle (8.5,-3.25);
+\draw[step=0.5cm,color=gray] (8.5,-3.75) rectangle (9,-3.25);
+\draw[step=0.5cm,color=gray] (9,-3.75) rectangle (9.5,-3.25);
+\draw[step=0.5cm,color=gray] (9.5,-3.75) rectangle (10,-3.25);
+
+\node at (6.25,-3.5) {\footnotesize{L0}};
+\node at (6.75,-3.5) {\footnotesize{L1}};
+\node at (7.25,-3.5) {\footnotesize{L2}};
+\node at (7.75,-3.5) {\footnotesize{L3}};
+\node at (8.25,-3.5) {\footnotesize{L4}};
+\node at (8.75,-3.5) {\footnotesize{L5}};
+\node at (9.25,-3.5) {\footnotesize{L6}};
+\node at (9.75,-3.5) {\footnotesize{L7}};
+
+\node at (10.25,-2.4) {=};
+
+\node at (5.5,-2.75) {High};
+\node at (5.5,-3.5) {Low};
+
+\end{tikzpicture}
+
+\captionof{figure}{Stage 3}
+\label{fig:stage3input}
+\end{figure}
+
+The first shuffle instruction in figure \ref{fig:stage3input} is produced with a transpose and a zip instruction, this is shown on figure \ref{fig:shiffle2}. The second shuffle is produced with one transpose instruction.
+
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\draw[step=0.5cm,color=gray] (0,1.5) rectangle (.5,2);
+\draw[step=0.5cm,color=gray] (.5,1.5) rectangle (1,2);
+\draw[step=0.5cm,color=gray] (1,1.5) rectangle (1.5,2);
+\draw[step=0.5cm,color=gray] (1.5,1.5) rectangle (2,2);
+\draw[step=0.5cm,color=gray] (2,1.5) rectangle (2.5,2);
+\draw[step=0.5cm,color=gray] (2.5,1.5) rectangle (3,2);
+\draw[step=0.5cm,color=gray] (3,1.5) rectangle (3.5,2);
+\draw[step=0.5cm,color=gray] (3.5,1.5) rectangle (4,2);
+
+\draw[step=0.5cm,color=gray] (0,0) rectangle (.5,.5);
+\draw[step=0.5cm,color=gray] (.5,0) rectangle (1,.5);
+\draw[step=0.5cm,color=gray] (1,0) rectangle (1.5,.5);
+\draw[step=0.5cm,color=gray] (1.5,0) rectangle (2,.5);
+\draw[step=0.5cm,color=gray] (2,0) rectangle (2.5,.5);
+\draw[step=0.5cm,color=gray] (2.5,0) rectangle (3,.5);
+\draw[step=0.5cm,color=gray] (3,0) rectangle (3.5,.5);
+\draw[step=0.5cm,color=gray] (3.5,0) rectangle (4,.5);
+
+\draw[step=0.5cm,color=gray] (3.75,.75) rectangle (5,1.25);
+
+\draw[->] (4,1.75) to[out=0,in=90] (4.25,1.25);
+\draw[->] (4.5,1.25) to[out=90,in=180] (4.75,1.75);
+
+\draw[->] (4,.25) to[out=0,in=-90] (4.25,.75);
+\draw[->] (4.5,.75) to[out=-90,in=180] (4.75,.25);
+
+\draw[step=0.5cm,color=gray] (0+4.75,1.5) rectangle (.5+4.75,2);
+\draw[step=0.5cm,color=gray] (.5+4.75,1.5) rectangle (1+4.75,2);
+\draw[step=0.5cm,color=gray] (1+4.75,1.5) rectangle (1.5+4.75,2);
+\draw[step=0.5cm,color=gray] (1.5+4.75,1.5) rectangle (2+4.75,2);
+\draw[step=0.5cm,color=gray] (2+4.75,1.5) rectangle (2.5+4.75,2);
+\draw[step=0.5cm,color=gray] (2.5+4.75,1.5) rectangle (3+4.75,2);
+\draw[step=0.5cm,color=gray] (3+4.75,1.5) rectangle (3.5+4.75,2);
+\draw[step=0.5cm,color=gray] (3.5+4.75,1.5) rectangle (4+4.75,2);
+
+\draw[step=0.5cm,color=gray] (0+4.75,0) rectangle (.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (.5+4.75,0) rectangle (1+4.75,.5);
+\draw[step=0.5cm,color=gray] (1+4.75,0) rectangle (1.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (1.5+4.75,0) rectangle (2+4.75,.5);
+\draw[step=0.5cm,color=gray] (2+4.75,0) rectangle (2.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (2.5+4.75,0) rectangle (3+4.75,.5);
+\draw[step=0.5cm,color=gray] (3+4.75,0) rectangle (3.5+4.75,.5);
+\draw[step=0.5cm,color=gray] (3.5+4.75,0) rectangle (4+4.75,.5);
+
+\draw[step=0.5cm,color=gray] (3.75+4.75,.75) rectangle (5+4.75,1.25);
+
+\draw[->] (4+4.75,1.75) to[out=0,in=90] (4.25+4.75,1.25);
+\draw[->] (4.5+4.75,1.25) to[out=90,in=180] (4.75+4.75,1.75);
+
+\draw[->] (4+4.75,.25) to[out=0,in=-90] (4.25+4.75,.75);
+\draw[->] (4.5+4.75,.75) to[out=-90,in=180] (4.75+4.75,.25);
+
+\draw[step=0.5cm,color=gray] (0+4.75+4.75,1.5) rectangle (.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (.5+4.75+4.75,1.5) rectangle (1+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (1+4.75+4.75,1.5) rectangle (1.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (1.5+4.75+4.75,1.5) rectangle (2+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (2+4.75+4.75,1.5) rectangle (2.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (2.5+4.75+4.75,1.5) rectangle (3+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (3+4.75+4.75,1.5) rectangle (3.5+4.75+4.75,2);
+\draw[step=0.5cm,color=gray] (3.5+4.75+4.75,1.5) rectangle (4+4.75+4.75,2);
+
+\draw[step=0.5cm,color=gray] (0+4.75+4.75,0) rectangle (.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (.5+4.75+4.75,0) rectangle (1+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (1+4.75+4.75,0) rectangle (1.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (1.5+4.75+4.75,0) rectangle (2+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (2+4.75+4.75,0) rectangle (2.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (2.5+4.75+4.75,0) rectangle (3+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (3+4.75+4.75,0) rectangle (3.5+4.75+4.75,.5);
+\draw[step=0.5cm,color=gray] (3.5+4.75+4.75,0) rectangle (4+4.75+4.75,.5);
+
+\node at (+0.25,+1.75) {\footnotesize{H0}};
+\node at (+0.75,+1.75) {\footnotesize{H1}};
+\node at (1.25,+1.75) {\footnotesize{H2}};
+\node at (1.75,+1.75) {\footnotesize{H3}};
+\node at (2.25,+1.75) {\footnotesize{H4}};
+\node at (2.75,+1.75) {\footnotesize{H5}};
+\node at (3.25,+1.75) {\footnotesize{H6}};
+\node at (3.75,+1.75) {\footnotesize{H7}};
+
+\node at (+0.25,+.25) {\footnotesize{L0}};
+\node at (+0.75,.25) {\footnotesize{L1}};
+\node at (1.25,.25) {\footnotesize{L2}};
+\node at (1.75,.25) {\footnotesize{L3}};
+\node at (2.25,.25) {\footnotesize{L4}};
+\node at (2.75,.25) {\footnotesize{L5}};
+\node at (3.25,.25) {\footnotesize{L6}};
+\node at (3.75,.25) {\footnotesize{L7}};
+
+
+\node at (+0.25+4.75,+1.75) {\footnotesize{L0}};
+\node at (+0.75+4.75,+1.75) {\footnotesize{H0}};
+\node at (1.25+4.75,+1.75) {\footnotesize{L2}};
+\node at (1.75+4.75,+1.75) {\footnotesize{H2}};
+\node at (2.25+4.75,+1.75) {\footnotesize{L4}};
+\node at (2.75+4.75,+1.75) {\footnotesize{H4}};
+\node at (3.25+4.75,+1.75) {\footnotesize{L6}};
+\node at (3.75+4.75,+1.75) {\footnotesize{H6}};
+
+\node at (+0.25+4.75,+.25) {\footnotesize{L1}};
+\node at (+0.75+4.75,.25) {\footnotesize{H1}};
+\node at (1.25+4.75,.25) {\footnotesize{L3}};
+\node at (1.75+4.75,.25) {\footnotesize{H3}};
+\node at (2.25+4.75,.25) {\footnotesize{L5}};
+\node at (2.75+4.75,.25) {\footnotesize{H5}};
+\node at (3.25+4.75,.25) {\footnotesize{L7}};
+\node at (3.75+4.75,.25) {\footnotesize{H7}};
+
+
+\node at (+0.25+4.75+4.75,+1.75) {\footnotesize{L0}};
+\node at (+0.75+4.75+4.75,+1.75) {\footnotesize{L1}};
+\node at (1.25+4.75+4.75,+1.75) {\footnotesize{H0}};
+\node at (1.75+4.75+4.75,+1.75) {\footnotesize{H1}};
+\node at (2.25+4.75+4.75,+1.75) {\footnotesize{L2}};
+\node at (2.75+4.75+4.75,+1.75) {\footnotesize{L3}};
+\node at (3.25+4.75+4.75,+1.75) {\footnotesize{H2}};
+\node at (3.75+4.75+4.75,+1.75) {\footnotesize{H3}};
+
+\node at (+0.25+4.75+4.75,+.25) {\footnotesize{L4}};
+\node at (+0.75+4.75+4.75,.25) {\footnotesize{L5}};
+\node at (1.25+4.75+4.75,.25) {\footnotesize{H4}};
+\node at (1.75+4.75+4.75,.25) {\footnotesize{H5}};
+\node at (2.25+4.75+4.75,.25) {\footnotesize{L6}};
+\node at (2.75+4.75+4.75,.25) {\footnotesize{L7}};
+\node at (3.25+4.75+4.75,.25) {\footnotesize{H6}};
+\node at (3.75+4.75+4.75,.25) {\footnotesize{H7}};
+
+\node at (4.4,1) {\footnotesize{Trn}};
+\node at (4.4+4.75,1) {\footnotesize{Zip}};
+
+\end{tikzpicture}
+
+\captionof{figure}{Transpose and zip instructions}
+\label{fig:shuffle2}
+\end{figure}
+
+The output from stage three is two vectors that are sorted in ascending order, so in one vector the two 64-bit subsets is reversed for the input of stage four. These vectors are compared and produces a min and max vectors that are shuffled so that the right lanes are in the right place, by concatenating the low lanes of the min register with the low lanes of the max register and the same for the high lanes for the registers. The rest of stage four is exactly the same as stage three, the output from this is one eight lane vector that has the high values and one eight lane vector that has the low values, sorted in ascending order. The four lowest values are the zero padded values, so these are removed.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+
+\filldraw[fill=YellowGreen] (-1,.75) rectangle (3,1.25);
+
+\draw[step=0.5cm,color=gray] (-1,.75) rectangle (-.5,1.25);
+\draw[step=0.5cm,color=gray] (-.5,.75) rectangle (0,1.25);
+\draw[step=0.5cm,color=gray] (0,.75) rectangle (.5,1.25);
+\draw[step=0.5cm,color=gray] (.5,.75) rectangle (1,1.25);
+
+\draw[step=0.5cm,color=gray] (1,.75) rectangle (1.5,1.25);
+\draw[step=0.5cm,color=gray] (1.5,.75) rectangle (2,1.25);
+\draw[step=0.5cm,color=gray] (2,.75) rectangle (2.5,1.25);
+\draw[step=0.5cm,color=gray] (2.5,.75) rectangle (3,1.25);
+\node at (-0.75,+1) {\footnotesize{i0}};
+\node at (-0.25,+1) {\footnotesize{i1}};
+\node at (+0.25,+1) {\footnotesize{i2}};
+\node at (+0.75,+1) {\footnotesize{i3}};
+\node at (1.25,+1) {\footnotesize{i4}};
+\node at (1.75,+1) {\footnotesize{i5}};
+\node at (2.25,+1) {\footnotesize{i6}};
+\node at (2.75,+1) {\footnotesize{i7}};
+
+\filldraw[fill=ProcessBlue] (-1,.0) rectangle (3,.5);
+
+\draw[step=0.5cm,color=gray] (-1,0) rectangle (-.5,.5);
+\draw[step=0.5cm,color=gray] (-.5,.0) rectangle (0,.5);
+\draw[step=0.5cm,color=gray] (0,.0) rectangle (.5,.5);
+\draw[step=0.5cm,color=gray] (.5,.0) rectangle (1,.5);
+
+\draw[step=0.5cm,color=gray] (1,0) rectangle (1.5,.5);
+\draw[step=0.5cm,color=gray] (1.5,.0) rectangle (2,.5);
+\draw[step=0.5cm,color=gray] (2,.0) rectangle (2.5,.5);
+\draw[step=0.5cm,color=gray] (2.5,.0) rectangle (3,.5);
+\node at (-0.75,+0.25) {\footnotesize{j0}};
+\node at (-0.25,+0.25) {\footnotesize{j1}};
+\node at (+0.25,+0.25) {\footnotesize{j2}};
+\node at (+0.75,+0.25) {\footnotesize{j3}};
+\node at (1.25,+0.25) {\footnotesize{j4}};
+\node at (1.75,+0.25) {\footnotesize{j5}};
+\node at (2.25,+0.25) {\footnotesize{j6}};
+\node at (2.75,+0.25) {\footnotesize{j6}};
+
+
+\draw[step=0.5cm,color=gray] (-1,-.75) rectangle (-.5,-.25);
+\draw[step=0.5cm,color=gray] (-.5,-.75) rectangle (0,-.25);
+\draw[step=0.5cm,color=gray] (0,-.75) rectangle (.5,-.25);
+\draw[step=0.5cm,color=gray] (.5,-.75) rectangle (1,-.25);
+
+\draw[step=0.5cm,color=gray] (1,-.75) rectangle (1.5,-.25);
+\draw[step=0.5cm,color=gray] (1.5,-.75) rectangle (2,-.25);
+\draw[step=0.5cm,color=gray] (2,-.75) rectangle (2.5,-.25);
+\draw[step=0.5cm,color=gray] (2.5,-.75) rectangle (3,-.25);
+\node at (-0.75,-.5) {\footnotesize{H0}};
+\node at (-0.25,-.5) {\footnotesize{H1}};
+\node at (+0.25,-.5) {\footnotesize{H2}};
+\node at (+0.75,-.5) {\footnotesize{H3}};
+\node at (1.25,-.5) {\footnotesize{H4}};
+\node at (1.75,-.5) {\footnotesize{H5}};
+\node at (2.25,-.5) {\footnotesize{H6}};
+\node at (2.75,-.5) {\footnotesize{H7}};
+
+
+\draw[step=0.5cm,color=gray] (-1,-1.5) rectangle (-.5,-1);
+\draw[step=0.5cm,color=gray] (-.5,-1.5) rectangle (0,-1);
+\draw[step=0.5cm,color=gray] (0,-1.5) rectangle (.5,-1);
+\draw[step=0.5cm,color=gray] (.5,-1.5) rectangle (1,-1);
+
+\draw[step=0.5cm,color=gray] (1,-1.5) rectangle (1.5,-1);
+\draw[step=0.5cm,color=gray] (1.5,-1.5) rectangle (2,-1);
+\draw[step=0.5cm,color=gray] (2,-1.5) rectangle (2.5,-1);
+\draw[step=0.5cm,color=gray] (2.5,-1.5) rectangle (3,-1);
+\node at (-0.75,-1.25) {\footnotesize{L0}};
+\node at (-0.25,-1.25) {\footnotesize{L1}};
+\node at (+0.25,-1.25) {\footnotesize{L2}};
+\node at (+0.75,-1.25) {\footnotesize{L3}};
+\node at (1.25,-1.25) {\footnotesize{L4}};
+\node at (1.75,-1.25) {\footnotesize{L5}};
+\node at (2.25,-1.25) {\footnotesize{L6}};
+\node at (2.75,-1.25) {\footnotesize{L7}};
+
+
+\node at (3.25,.6) {$<$};
+\node at (3.25,-.2) {$=$};
+
+\node at (-1.3,1) {V0};
+\node at (-1.3,.25) {V1};
+\node at (-1.5,-.5) {High};
+\node at (-1.5,-1.25) {Low};
+
+%%Shuffle
+\draw[->] (.75,-1.75) .. controls (.75,-2.2) and (1.25,-1.8) .. (1.25,-2.25);
+\draw[->] (1.25,-1.75) .. controls (1.25,-2.2) and (.75,-1.8).. (.75,-2.25);
+
+%% Result bottpm  left
+
+\draw[step=0.5cm,color=gray] (-1,-3) rectangle (-.5,-2.5);
+\draw[step=0.5cm,color=gray] (-.5,-3) rectangle (0,-2.5);
+\draw[step=0.5cm,color=gray] (0,-3) rectangle (.5,-2.5);
+\draw[step=0.5cm,color=gray] (.5,-3) rectangle (1,-2.5);
+
+\draw[step=0.5cm,color=gray] (1,-3) rectangle (1.5,-2.5);
+\draw[step=0.5cm,color=gray] (1.5,-3) rectangle (2,-2.5);
+\draw[step=0.5cm,color=gray] (2,-3) rectangle (2.5,-2.5);
+\draw[step=0.5cm,color=gray] (2.5,-3) rectangle (3,-2.5);
+\node at (-0.75,-2.75) {\footnotesize{L0}};
+\node at (-0.25,-2.75) {\footnotesize{L1}};
+\node at (+0.25,-2.75) {\footnotesize{l2}};
+\node at (+0.75,-2.75) {\footnotesize{l3}};
+\node at (1.25,-2.75) {\footnotesize{H0}};
+\node at (1.75,-2.75) {\footnotesize{H1}};
+\node at (2.25,-2.75) {\footnotesize{H2}};
+\node at (2.75,-2.75) {\footnotesize{H3}};
+
+\draw[step=0.5cm,color=gray] (-1,-3.75) rectangle (-.5,-3.25);
+\draw[step=0.5cm,color=gray] (-.5,-3.75) rectangle (0,-3.25);
+\draw[step=0.5cm,color=gray] (0,-3.75) rectangle (.5,-3.25);
+\draw[step=0.5cm,color=gray] (.5,-3.75) rectangle (1,-3.25);
+
+\draw[step=0.5cm,color=gray] (1,-3.75) rectangle (1.5,-3.25);
+\draw[step=0.5cm,color=gray] (1.5,-3.75) rectangle (2,-3.25);
+\draw[step=0.5cm,color=gray] (2,-3.75) rectangle (2.5,-3.25);
+\draw[step=0.5cm,color=gray] (2.5,-3.75) rectangle (3,-3.25);
+\node at (-0.75,-3.5) {\footnotesize{L4}};
+\node at (-0.25,-3.5) {\footnotesize{L5}};
+\node at (+0.25,-3.5) {\footnotesize{L6}};
+\node at (+0.75,-3.5) {\footnotesize{L7}};
+\node at (1.25,-3.5) {\footnotesize{H4}};
+\node at (1.75,-3.5) {\footnotesize{H5}};
+\node at (2.25,-3.5) {\footnotesize{H6}};
+\node at (2.75,-3.5) {\footnotesize{H7}};
+
+
+\node at (4.5,-3.1) {Input stage 3};
+
+\node at (-1.3,-2.75) {V0};
+\node at (-1.3,-3.75) {V1};
+
+
+\end{tikzpicture}
+
+\captionof{figure}{Stage 3}
+\label{fig:stage3input}
+\end{figure}
+
+Listing \ref{lst:binningmedian} shows the code for how capturing a image and binning is done. This was concluded to be the fastest way to do it in the specialization project. In the \textit{getMedianValue} function 12 sample values get read into their vectors, sorted and written back to memory. The middle value, six, from the sorted values is the resulting median value. Each row from the sensor is independent from each other so two threads can work on different rows. The time it takes to execute line 4 to 13 is whats measured here, this is the time it takes to binn one image. The average time for this is 27 ms and 55 ms with only one thread, when the maximum framerate is set for the resolutions presented in table \ref{tab:fpsresults2}.
+
+
+
+\begin{lstlisting}[language=C++, caption={Median Binning}, label={lst:binningmedian}]
+for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
+    is_WaitForNextImage(hCam, 1000, &(rawImageP), &imageSequenceID);
+
+    #pragma omp parallel for num_threads(2)
+    for(int row=0; row<sensorRows; row++){
+        int rowOffset = row*sensorColumns;
+        int binnedIdxOffset = row*nBandsBinned;
+
+        int binOffset = 0;
+        for(int binnIterator=0; binnIterator<nFullBinnsPerRow; binnIterator++){
+            binnedImages[imageNumber][binnedIdxOffset+binnIterator = getMedianValue((unsigned char*)(&rawImageP), rowOffset+binOffset, rowOffset+binOffset+12, 6);
+        }
+    }
+    is_UnlockSeqBuf (hCam, 1, rawImageP);
+}
+\end{lstlisting}
+
+\subsection{FPS and resolution}
+\label{chap:TestingFPS}
+To test what maximum framerates and resolutions are possible with the GigE camera, the binning stage in figure \ref{fig::design2} is cut out, so that the only work the CPU is doing is using the driver to write images to memory and fetching a pointer to that memory in the program and freeing the memory again. To measure the framerate, the time it takes from the \textit{is\_WaitForNextImage} function have returned a pointer until the next time the function returns a pointer is recorded. The \textit{is\_WaitForNextImage} function blocks until a image is available in memory. Table \ref{tab:fpsresults} shows the framerate achieved for different resolutions at different bit depths.
+
+\begin{table}[h!]
+\label{tab:fpsresults}
+\caption{Framerate results}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline
+         FPS   & \begin{tabular}[c]{@{}l@{}}1936x\\ 1216\end{tabular} &
+         \begin{tabular}[c]{@{}l@{}}1920x\\ 1080\end{tabular} &
+         \begin{tabular}[c]{@{}l@{}}1600x\\ 1200\end{tabular} & \begin{tabular}[c]{@{}l@{}}1280x\\ 1024\end{tabular} & \begin{tabular}[c]{@{}l@{}}1024x\\ 1024\end{tabular} & \begin{tabular}[c]{@{}l@{}}1280x\\ 720\end{tabular} & \begin{tabular}[c]{@{}l@{}}1024x\\ 768\end{tabular} \\ \hline
+16-bit GigE &  6 & 9 & 9 & 16 & 25 & 28 & 32 \\ \hline
+8-bit GigE & 20  & 25 & 27& 32 & 45 & 47 & 47 \\ \hline
+8-bit USB &  14.6 & 13 & 12.2& 26 & 34 &  &  \\ \hline
+
+\end{tabular}
+\end{table}
+
+
+Both USB and GigE cameras were tested. For USB, the driver constrained the framerate of the camera itself, when setting the framerate, it's only possible to set a maximum value for the framerate, setting anything above that limit results in the camera using the maximum value. For GigE there is no such constraints, it is possible to set any framerate, but when the framerate is set too high, the \textit{is\_WaitForNextImage} function returns a empty pointer and the driver prints that an error occurred.
+
+The two last results for 8-bit GigE in table \ref{tab:fpsresults} of 47 FPS is because the maximum frames per second that the camera can deliver is 47 FPS. The CPU load averages around 94\% for the first 16-bit test, that is, resolution 1936x1216. The CPU load decreases to 60-70\% and 50\% for 1920x1080 and 1600x1200 respectively, then for all other resolutions in 16-bit and 8-bit, the CPU load is around 40\%.
+
+%Subsampling the pixels in horizontal direction on 1936x1216 resolution has also been tested. The FPS for subsampling 2x gives a FPS of 23 and with 4x gives 32 FPS. When assuming that the 12-bit samples is transferred in 16-bit words, the scatter plot on figure \ref{fig:scatterfps} shows the bandwidth for the whole system, from capturing frames to the frame being written to memory. Excluding the three values where the CPU is working harder, the average bandwidth is 48.4 MBps.
+
+Testing the same resolutions with the binning stage not cut out gives the framrates of the three first entries in table \ref{tab:fpsresults2}. A * in the result means that the driver constrained the framerate. Subsampled values with mean binning in the regular CPU core(not SIMD) are on entry 4 and 5 and subsampling with the binning stage cut out are on entry 6 and 7 in the table. It is desirable to have the same number of bins when the subsampling is used too, therefore the number of samples in each bin is reduced to 6 when subsampling 2x is used and 3 when subsampling 4x is used, this proved to be so small bins that it wasnt any point in using SIMD for this.
+
+\begin{table}[h!]
+\label{tab:fpsresults2}
+\caption{FPS: 16-bit GigE, binning}
+\begin{tabular}{|l|l|l|l|l|l|l|l|l|}
+\hline
+         Method   & \begin{tabular}[c]{@{}l@{}}1936x\\ 1216\end{tabular} &
+         \begin{tabular}[c]{@{}l@{}}1920x\\ 1080\end{tabular} &
+         \begin{tabular}[c]{@{}l@{}}1600x\\ 1200\end{tabular} & \begin{tabular}[c]{@{}l@{}}1280x\\ 1024\end{tabular} & \begin{tabular}[c]{@{}l@{}}1024x\\ 1024\end{tabular} & \begin{tabular}[c]{@{}l@{}}1280x\\ 720\end{tabular} & \begin{tabular}[c]{@{}l@{}}1024x\\ 768\end{tabular} &
+         \begin{tabular}[c]{@{}l@{}}800x\\ 600\end{tabular} \\ \hline
+SIMD Median &  5 & 5 & 9 & 11 & 17 & 19 & 23 & 32*\\ \hline
+SIMD Mean &  3 & 6 & 12 & 16 & 19 & 21 & 27 & 32*\\ \hline
+Normal Mean &  1 & 1 & 3 & 9 & 12 & 15 & 22 & 32*\\ \hline
+Norm Mean sub2x &  15 & 18 & 20 & 30 & 37 & 42 & 47 & X\\ \hline
+Norm Mean sub4x &  32* & 36* & 33* & 37* & 37* & 47 & X & X\\ \hline
+No bin sub2x &  23 & 26 & 30 & 37* & 37* & 47 & X & X\\ \hline
+No bin sub4x &  32* & 36* & 33* & 37* & 37* & 47 & X & X\\ \hline
+SIMD Median 8samples sub2x &  1* & 1* & 2 & 37* & 37* & 47 & X & X\\ \hline
+\end{tabular}
+\end{table}
+
+It is possible to set the resolution up in two ways with the driver, as described in chapter \ref{chap::ueye} one way is with the \textit{is\_AOI} function and one is with the \textit{is\_ImageFormat} function. The values in table \ref{tab:fpsresults} and \ref{tab:fpsresults2} are obtained with the {is\_ImageFormat} method, testing have also been done to see if the area of interest method is faster, this is not the case, both methods yields the same result.
+
+
+Figure \ref{fig::bps} shows the throughput of bytes for the framerates achieved in table \ref{tab:fpsresults} for the 8- and 16-bit GigE interface. The values are calculated by multiplying number of pixels per frame by frames per second by number of bytes per pixels. The throughput is relatively stable for 8-bit and for 16-bit the throughput increases as the resolution goes down for the four first values.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/bps.png}
+	\caption{Thougput for resolutions}
+	\label{fig::bps}
+\end{figure}
+
+\subsection{Trigger mode}
+
+To see if there is any difference in stability and CPU load between using HW-Trigger and freerun mode, a signal generator is connected to pin four and seven of the camera. Testing is done by recording the time between each frame is captured, the same way as in chapter \ref{chap:TestingFPS}. When using the same resolutions and FPS as in table \ref{chap:TestingFPS} for 16-bit images, there is no noticeable difference in CPU utilization or imagecapture stability between HW-Trigger and freerun mode. Figure \ref{fig:triggerresults} shows the timing results for resolutions 1280x720 and 1936x1216. There is a difference between maximum resolution with maximum stable framerate and lesser resolutions. As shown in figure \ref{subfig-2:19361216}, the time between frames becomes much more unstable, compared to figure \ref{subfig-1:1280720}. Figure \ref{subfig-1:1280720} is more or less how it looks like for all other resolutions than full resolution.
+
+\begin{figure}[h!]
+     \centering
+     \begin{subfigure}[b]{\textwidth}
+	  \includegraphics[width=\textwidth]{images/Triggertest1.PNG}
+       \caption{1280x720}
+       \label{subfig-1:1280720}
+     \end{subfigure}
+
+   \begin{subfigure}[b]{\textwidth}
+
+	  \includegraphics[width=\textwidth]{images/Triggertest2.PNG}
+       \caption{1936x1216}
+       \label{subfig-2:19361216}
+     \end{subfigure}
+     \caption{Trigger test}
+     \label{fig:triggerresults}
+\end{figure}
+
+
+
+\FloatBarrier
+\section{Baseline image processing pipeline}
+
+The process of getting the pipeline to work was to first get the cubeDMA implementation running with no OS and to get to know the design, then build it with Linux and get it to run the same way there. Because Linux is a virtual memory system, it swaps pages in and out of memory at will. Therefore, a driver that handles DMA memory had to be made for cubeDMA to work with Linux. Then implement the CCSDS123 and verify it and make then make everything work together.
+
+\subsection{Implementing CubeDMA}
+To implement CubeDMA for the Zynq system, Vivados block design feature is used. A CubeDMA block can be added with just dragging and dropping from RTL design, but this can turn out to be a mistake. When this is done the the generic parameters is set to their default values, regardles of what is specified in the block design. This is with Vivado version 2018.3, it might not be an issue in other versions. For this not to happen, the RTL design must be exported as an IP from Vivado and then imported to the block design. Once this is done, the parameters for axis width, component width and number of components can be set. To use BSQ order transfer, tinymover must also be enabled.
+
+For testing purposes, a FIFO can be used, this has to be the same width as CubeDMA and be connected between \textit{s\_axis\_s2mm} channel and \textit{m\_axis\_mm2s}. The Zynq processing system 7 core must be added to act like a logic connection between the PS and the PL. This core can also manage the peripheral I/O connections. It is important that Ethernet, USB, SD and UART are connected to MIO pins for the PS to functional. MIO pins are the pins which connects the peripheral devices to the I/O mux on figure \ref{fig::soc}. Figure \ref{fig::blockdesign} shows how this block design looks like when everything is connected.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/blockdesign.png}
+	\caption{Block design}
+	\label{fig::blockdesign}
+\end{figure}
+
+\subsubsection{Building Linux}
+The hardware design made in Vivado must be exported and added in petalinux tools, the design will then be uploaded to the FPGA when the system boots. A device tree is a datastructure that holds information of the hardware the system is runing on, this is read by the kernel when booting. Included in this tree is the size of RAM, it is not possible to change RAM size or anything other in the device tree with petalinux. However it is possible to add things into the device tree. One node type that can be added is a reserved memory node, this node reserves a range of memory from a starting address, this range will not be mapped to the kernels virtual address space, user virtual address space or be used in any way by the kernel. After this is added the boot images can be built and the system can be booted.
+
+\subsubsection{Kernel module}
+\label{chap::kernelmodule}
+A kernel module can either be a char driver, block driver or network driver. Char drivers are accessible through a device file in the file system and is read or written to char by char, like a stream of data Block drivers are mounted as a file system and is read or written to with blocks of data. Network drivers are similar to block devices, but differ in that they can send and receive data asynchronously on the network. In this project a network driver has been used, because it provides the functionality needed for the design, no big blocks of data has to be sent between kernel and user space, and no access to the network is needed.
+
+Associated with kernel modules, are something called major and minor numbers. The purpose of these numbers are to identify the driver and the device. In some systems, only major numbers are used, in these systems the major number tells the kernel exactly what driver and device file it refers to(multiple devices can be created from one driver). In other systems the major number refers to what driver it is and the minor number refers to what deivce it is. In this system only major numbers is used. The major number can be given to the driver from the kernel or created by the driver, this has to be registered in the kernel.
+
+Communication between the user space application and the kernel module happens through system calls from user space. Char devices requires a few structures to work with the kernel, the most important are; file operations struct, file struct and inode struct.
+
+\begin{itemize}
+  \item \textbf{File operations structure.} This structure contain pointers to the functions to execute when user space uses system calls for this device, listing \ref{lst::fops} shows and example for one of these. When the \textit{open} system call is used on this device, the kernel knows what function to execute, because it has a pointer to the \textit{dev\_open} function.
+
+
+ \begin{lstlisting}[language=C++, caption={File operations}, label={lst::fops}]
+struct file_operations fops = {
+  .open = dev_open,
+  .read = dev_read,
+  .write = dev_write,
+  .release = dev_release,
+  .mmap = dev_mmap,
+	.unlocked_ioctl = dev_ioctl
+};
+\end{lstlisting}
+
+  \item \textbf{File structure.} This structure contains information about the device that can be used by the device and kernel. This structure is created by the OS when the device is opened and is passed to all functions used in the driver. This structure has many fields, perhaps the most important ones are show in listing \ref{lst::file}. The \textit{mode\_t} field has information on if the device is readable or writable, the file operation struct described earlier, and the private data field. The private data field can be set to point to anything, this can be helpful for many things within the driver.
+
+   \begin{lstlisting}[language=C++, caption={File operations}, label={lst::fops}]
+struct file file_str = {
+    .
+    .
+    mode_t f_mode;
+    struct file_operations *f_op;
+    void *private_data;
+    .
+    .
+};
+\end{lstlisting}
+
+  \item \textbf{Inode structure.} Also contains information about the driver, but this is information created and used in the OS. The most important data it contains, from a kernel module programmers point of view is the major and minor numbers
+\end{itemize}
+
+
+The driver written is essentially two instances(or two devices) of one driver, when it is first initialized it creates two different kernel modules, one for sending data and one for receiving data. The memory reserved from being used by the kernel can be mapped to user space with the \textit{mmap} function by the kernel, how this is done is shown in listing \ref{lst:usmap}.
+
+\begin{lstlisting}[language=C++, caption={User mapping}, label={lst:usmap}]
+static int dev_mmap(struct file *file_p, struct vm_area_struct *vma){
+	struct inode *inode = (struct inode *)file_p->private_data;
+
+	if(imajor(inode)==dma_channel[0].major_number){//send
+		remap_pfn_range(vma, vma->vm_start, SEND_PHYS_ADDR>>PAGE_SHIFT, vma->vm_end-vma->vm_start, vma->vm_page_prot);
+	}
+	else{//reieve
+		remap_pfn_range(vma, vma->vm_start, RECIEVE_PHYS_ADDR>>PAGE_SHIFT, vma->vm_end-vma->vm_start, vma->vm_page_prot);
+	}
+	return 0;
+}
+\end{lstlisting}
+
+The first thing the mmap function is doing is copy the content from \textit{private\_data} in the file structure to a inode structure. The \textit{private\_data} field of this structure is initially a NULL pointer. This have been assigned to point to the inode structure of the driver, when it was first opened. Listing \ref{lst:opendriv} shows how the the drivers open function looks like.
+
+Then in line 4 of listing \ref{lst:usmap} the inode is used to find the major number of this driver instance to decide if it should map the receiver address or sender address to memory. The function that does the actual mapping of memory, is the function in line 5 or 8 based on if it is the receiver or sender. The function builds a page table of user space virtual addresses, for a range of physical addresses and passes it to user space. Many of the arguments for this function is provided from the kernel, when mmap is called, the arguments passed to \textit{remap\_pfn\_range} are:
+
+\textbf{int remap\_pfn\_range(struct vm\_area\_struct* vma, unsigned long virt\_addr, unsigned long pfn, unsigned long size, pgprot\_t prot)}
+
+vma: The virtual memory area the pages are being mapped.
+
+virt\_addr: Starting address of the virtual address range
+
+pfn: The frame number of the first frame in memory that the virtual address range is being mapped to. This is the physical address right shifted by how many bits that are in the page index. Since pages and frames are equal length.
+
+size: Size of the memory being mapped.
+
+prot: The protection level of the new virtual memory.
+
+
+\begin{lstlisting}[language=C++, caption={Open driver}, label={lst:opendriv}]
+static int dev_open(struct inode *inodep, struct file *filep){
+	filep->private_data = inodep;
+	return 0;
+}
+\end{lstlisting}
+
+Because the data is cached, there has to be a way to make sure that the correct data is in RAM when DMA starts to transfer and that the right data is read when reading the data in the processing system after DMA has transferred back to RAM. To make sure of this the caches can be flushed and cleaned. In ARM termonology, flushing cache means making the data that is in the caches invalid,    the next time the CPU accesses this data, it has to read it from RAM, not cache. Cleaning a cache means to make data in cache dirty, the data in cache is then written to memory. Before the data can be flushed and cleaned, the adresses has to be available to the kernel. This is done with the function in listing \ref{lst:kernrem}, this function maps physical adddresses to kernel virtual addresses.
+
+\begin{lstlisting}[language=C++, caption={Kernel remapping}, label={lst:kernrem}]
+memremap(SEND_PHYS_ADDR, sizeof(struct dma_data), MEMREMAP_WB);
+\end{lstlisting}
+
+Listing \ref{lst:flush} Shows how data gets flushed and cleaned. The function is a ioctl function, which is a system call that can be used with char drivers to do driver specific things, and in this driver it cleans and flushes cache. The \textit{cmd} argument decides if a clean of the send and receive addresses or flush flush of the receive addresses should be done. The function in line 3 cleans and flushes the L1 cache and the function on line 4 cleans L2 cache and the function on line 7 flushes L2 cache. The order of when theses functions are called depending on what direction the data has to flow.
+
+\begin{lstlisting}[language=C++, caption={Flush and invalidate}, label={lst:flush}]
+static long dev_ioctl(struct file* file, unsigned int cmd, unsigned long arg){
+	if(cmd==0){//Clean send cache
+		__cpuc_flush_dcache_area(dma_channel[0].p_dma_data, sizeof(struct dma_data));
+		outer_clean_range(SEND_PHYS_ADDR, 0x19000000);
+	}
+	else{//Invalidate recieve
+		outer_inv_range(RECIEVE_PHYS_ADDR, 19000000);
+		__cpuc_flush_dcache_area(dma_channel[1].p_dma_data, sizeof(struct dma_data));
+	}
+	return 0;
+}
+\end{lstlisting}
+
+\subsubsection{User space}
+\label{chap::userspace}
+From user space the driver can be opened the same way as a file, shown on line 1 and 2 in listing \ref{lst:usrspc}. Since the driver is initialized with two instances, both has to be opened. The mmap functions on line 4 and 6 gets a pointer to the virtual memory mapped from the driver. These pointers can now be used to read and write to the addresses reserved from the kernel.
+
+
+\begin{lstlisting}[language=C++, caption={Map memory to user space}, label={lst:usrspc}]
+int fd_send = open("/dev/cubedmasend", O_RDWR);
+int fd_recieve = open("/dev/cubedmareceive", O_RDWR);
+
+send_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dma_proxy_channel_interface), PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
+
+recieve_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dma_proxy_channel_interface), PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
+\end{lstlisting}
+
+The memory mapped cubeDMA registers can be found in the mem file, opened and mapped to user space memory, as shown in listing \ref{lst:devusr}. This maps one page from base address of the device and casts it as a 32 bit pointer, this is 32 bit because the device registers are 32 bit. The base address for the device can be found in the address field of the device in vivado, this is usually 0x43c00000 or higher.
+
+\begin{lstlisting}[language=C++, caption={Map device to user space}, label={lst:devusr}]
+fd = open("/dev/mem", O_RDWR|O_SYNC)
+deviceMem = static_cast<uint32_t*>(mmap(0, getpagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, CUBEDMA_BASE))
+
+\end{lstlisting}
+
+\subsection{Implementing CCSDS123}
+
+To implement CCSDS123, the FIFO in figure \ref{fig::blockdesign} is switched out with the CCSDS123 module. The module can either be added by importing the source files or having it made into an IP and imported to the project the same way as cubeDMA is. The samples from the camera use unsigned values, so the CCSDS123 must also use this. The on the fly option must be un-checked when setting up, if on the fly processing is enabled and the cubeDMA is delivering data slower or faster than the CCSDS123 module reads it, the result will become corrupted. Number of pipelines, bit depth and bus width must match with axis width, number of components and component width for both MM2S and S2MM on the cubeDMA block. The rest of the parameters is up to the user.
+
+The endianess of the input data has to be little endian for the FPGA. To test that everything compresses and transfers correctly, the raw data is also stored on the board, then it is compressed by a software compressor called Emporda. Since this is a lossless compression algorithm the Emporda result should be the same as the FPGA result, these two results is then compared. It should be noted that the user defined parameters must be the same for the FPGA implementation and Emporda for the results to be the same.
+
+\subsection{System design}
+\label{chap::systemdesign}
+Figure \ref{fig::systemov} shows the systems modules and how they fit together. In the processing system the HSICamera module uses the camera driver to capture frames, make a cube and then store it to memory. The DMA memory manager handles DMA memory, like it is described in chapter \ref{chap::kernelmodule} and the CDMA driver handles interfacing with CubeDMA. In programmable logic, CubeDMA fetches a cube from memory, sends it to CCSDS123 module which compresses the image sends it back to CubeDMA which in turn sends it back to memory again.
+
+\begin{figure}
+\begin{tikzpicture}
+
+\node [rectangle, fill = white, draw=black, minimum height = 6cm, text width = 7cm, rounded corners] (sw) at (6,-1.5) {};
+\node[] at (6,1.2) {PS};
+
+\node [rectangle, fill = white, draw=black, minimum height = 3cm, text width = 7cm, rounded corners] (hw) at (6,-6) {};
+\node[] at (6,-4.8) {PL};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (camera) at (0,0) {Camera};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (driver) at (4,0) {Driver};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (hsi) at (8,0) {HSICamera};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (cdmadriver) at (4,-3) {CDMA Driver};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (dmamem) at (8,-3) {DMA Mem Manager};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (ccsds) at (4,-6) {CCSDS123};
+
+\node [rectangle, fill = hue, draw=black, minimum height = 2cm, text width = 2cm, rounded corners, text centered] (cubdma) at (8,-6) {CubeDMA};
+
+
+\node [rectangle, fill = hue, draw=black, minimum height = 10cm, text width = 2cm, text centered] (mem) at (12,-3) {Memory};
+
+
+\path [draw, ->, thick, -latex] (driver) -- (camera);
+\path [draw, ->, thick, -latex] (camera) -- (driver);
+\path [draw, ->, thick, -latex] (driver) -- (hsi);
+\path [draw, ->, thick, -latex] (hsi) -- (driver);
+\path [draw, ->, thick, -latex] (hsi) -- (mem);
+\path [draw, ->, thick, -latex] (hsi) -- (cdmadriver);
+\path [draw, ->, thick, -latex] (hsi) -- (dmamem);
+\path [draw, ->, thick, -latex] (dmamem) -- (mem);
+\path [draw, ->, thick, -latex] (cdmadriver) -- (cubdma);
+\path [draw, ->, thick, -latex] (ccsds) -- (cubdma);
+\path [draw, ->, thick, -latex] (cubdma) -- (ccsds);
+\path [draw, ->, thick, -latex] (mem) -- (cubdma);
+\path [draw, ->, thick, -latex] (cubdma) -- (mem);
+
+% \path [draw, ->, thick, -latex] (program) -- (mem);
+% \path [draw, ->, thick, -latex] (mem) -- (program);
+% \path [draw, ->, thick, -latex] (program) to[out=270,in=180] (storage);
+% \path [draw, ->, thick, -latex] (mem) -- (fpga);
+%\path [draw, ->, -latex, dashed] (tekst) -- (6.4, -1.1);
+\end{tikzpicture}
+\caption{System overview}
+\label{fig::systemov}
+\end{figure}
+
+
+The HSICamer and CDMADriver module are C++ classes and DMAMemManager is a kernel module, a UML of these modules are shown on figure \ref{fig::uml1}. The HSICamera class instantiates the CubeDMADriver class and opens the DMAMemoryManager driver. The \textit{SharedMemParams} is a header file that contains data that is shared between HSICamera and DMAMemoryManager, this is the physical address of where DMA is recieveing and sending, and a structure for holding the DMA data.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.9\textwidth]{images/uml1.png}
+	\caption{UML}
+	\label{fig::uml1}
+\end{figure}
+
+\subsubsection{CubeDMADriver}
+
+The driver for cube DMA transfer has a init fuction that has to be run before it can be used, what it is doing is it opens the device memory file in Linux and maps the device address as a 32-bit pointer to the driver, like described in chapter \ref{chap::userspace}. It then initializes the registers with a \textit{cubedma\_init\_t} struct that is passed to the function. The \textit{cubedma\_init\_t} struct contains the fields shown in table \ref{tab::S2MM} and \ref{tab::MM2S}. It has functions for starting a transfer and polling the device registers to check if transfer is finished for the receive and send channels of CubeDMA or check if a interrupt has occured.
+
+\subsubsection{HSICamera}
+
+The AOI method of setting the resolution is used, this is because this gives the freedom to use any resolution, it takes an width and height, then sets the AOI to be in the middle of the sensor.
+
+The position and size of the AOI is specified in a struct that is passed to the \textit{is\_AOI} function, the x and y position in this struct sets the x and y position of the upper left corner of the AOI on the sensor. The x and y position changes based on the size of the AOI, this is calculated with equation \ref{eq:aoi}, figure \ref{fig::aoisensor} shows the parameters used in the equation.
+
+\begin{equation}
+\label{eq:aoi}
+X_{offset} = \frac{Sensor width-Width}{2}
+Y_{offset} = \frac{Sensor height-height}{2}
+\end{equation}
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}
+    \draw[step=0.5cm,color=gray] (-1, -1) grid (5, 5);
+    \draw[very thick, step=0.5cm,color=black] (-1, -1) rectangle (5, 5);
+    \draw[thick, step=0.5cm,color=black] (1, 1) rectangle (3, 3);
+
+    \draw [decorate,decoration={brace,amplitude=10pt},xshift=-0pt,yshift=4pt]
+    (-1, 5) -- (1, 5) node [black,midway,xshift=-0cm, yshift=15pt]
+    {\footnotesize $X_{offset}$};
+
+    \draw [decorate,decoration={brace,amplitude=10pt},xshift=-4pt,yshift=0pt]
+    (-1, 3) -- (-1, 5) node [black,midway,xshift=-0.6cm,rotate=60]
+    {\footnotesize $Y_{offset}$};
+
+    \draw [decorate,decoration={brace,amplitude=10pt},xshift=-0pt,yshift=4pt]
+    (1, 3) -- (3, 3) node [black,midway,xshift=-0cm, yshift=15pt]
+    {\footnotesize Width};
+
+    \draw [decorate,decoration={brace,amplitude=10pt},xshift=-4pt,yshift=0pt]
+    (1, 1) -- (1, 3) node [black,midway,xshift=-0.6cm,rotate=60]
+    {\footnotesize Height};
+
+    \draw [decorate,decoration={brace,amplitude=10pt},xshift=-0pt,yshift=-4pt]
+    (5, -1) -- (-1, -1) node [black, below, midway,xshift=-0cm, yshift=-5pt]
+    {\footnotesize Sensor width};
+
+    \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+    (5, -1) -- (5 , 5) node [black,midway,xshift=1.8cm] {\footnotesize
+    Sensor height};
+
+    \node at (2,2) {AOI};
+
+    \end{tikzpicture}
+    \caption{AOI sensor}
+    \label{fig::aoisensor}
+\end{figure}
+
+This struct also sets how the image is stored in memory, it can have absolute memory position on the X axis or Y axis. The memory allocated for the image can be bigger than the actual size of the AOI, the absolute memory position tells the driver how the image is stored within this memory. Figure \ref{fig::nonabs} shows how this looks like with no absolute memory position and \ref{fig::abs} shows how this looks like with absolute memory position on both axis.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/nonabsolutemem.png}
+	\caption{Non absolute memory position}
+	\label{fig::nonabs}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/absolutemem.png}
+	\caption{Absolute memory position}
+	\label{fig::abs}
+\end{figure}
+
+In this design absolute memory position on both axes is used, with a memory that is 1936x1216 big, these offsets is accounted for when reading the image. The reason 1936x1216 is used, is because this is the sensor size and this gives the possibility to use all of the sensor.
+
+The program takesin these parameters double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube
+To capture a image two functions is used \textit{initialize} and \textit{run\_cube\_capture}. The \textit{initilize} function takes five arguments:
+
+\begin{itemize}
+    \item \textbf{Exposure.} The exposure time of the camera sensor in milli seconds.
+    \item \textbf{Rows.} Number of rows in each frame.
+    \item \textbf{Columns.} Number of columns in each frame.
+    \item \textbf{Frames.} Number of frames in the cube.
+    \item \textbf{FPS.} Framerate of the camera
+    \item \textbf{Cube format.} Cube format is a enumerator used to specify what cube format to store the raw cube in, or to store it at all. Listing \ref{lst::cubeform} shows this enumerator, None mean to not store the cube.
+    \begin{lstlisting}[language=C++, caption={Cube formats}, label={lst:cubeforms}]
+        enum cubeFormat { Bil, Bip, Bsq, Raw, None };
+    \end{lstlisting}
+
+\end{itemize}
+The \textit{initialize} function initilizes the camera with the exposure time, FPS and sets the number of columns and rows for the frame in the AOI. The pixel clock, display mode and color mode is also set, but these are fixed parameters.
+
+Variables for binning is calculated, variable such as; How many binns there are for each row of the sensor. How many samples there are for the last bin in each row, since this varies for different image sizes.
+
+Memory allocation for camera frames is done and a image memory buffer of size ten is made, ten is used because this has been sufficient enough during development. The DMAMemoryManager is used to allocate memory for the cube and the device memory is mapped into user space as described in a previous chapters.
+
+When the \textit{run\_cube\_capture} function is run, the program captures the frames, builds a cube and sends it to the FPGA, compresses it and recieves the compressed cube back. It is possible to use three different binning methods, median binning with SIMD instructions, mean binning with SIMD instructions or mean binning with ordinary CPU instructions. Three different functions has been written that captures frames and binns them, the only differences between them is the binning method. One gets called from the \textit{run\_cube\_capture} function, the one that is called is decided by the \textit{binning\_method} varialbe in the header file. The reason for having three possibilities is if further testing is needed later in the project.
+
+The samples from the camera are in little endian order, the processing system uses big endian and the CCSDS123 implementation needs little endian as input. That means the entire frame needs to be byte swapped to big endian before binning can be done, then the binned value has to be swapped back to little endian again. The byte swapping is done with the \textit{byteswap.h} C++ library.
+
+To save room the bits is packed, the packing is done with help from the compiler, ARM compilers has extensions for byte packing\cite{armpacking}. Using the \textit{\#pragma pack(push[,n])} directive sets the byte alignment and using the \textit{\#pragma pack(pop)} sets the alignment back to the default value again. Bit fields is another compiler directive for C compilers, it tells the compiler that a variable only is going to use a certain amount of bits, the compiler then the compiler can pack adjacent bit fields to share bytes\cite{bitfields}.
+
+Listing \ref{lst:bitpack} shows how bit packing of 12-bits is done in the \textit{ShareMemParams} header file. The \textit{uint12\_t} struct defines a bitfield of 12 bits, this is struct is told to be one byte aligned. The \textit{dma\_data} struct creates a array of \textit{uint12\_t} struct that gets packed together.
+
+\begin{lstlisting}[language=C++, caption={Bit packing}, label={lst:bitpack}]
+#pragma pack(push, 1)
+typedef struct {
+	uint16_t value:12;
+} uint12_t;
+#pragma pack(pop)
+
+struct dma_data {
+	uint12_t buffer[CUBE_SIZE];
+	unsigned int length;
+};
+\end{lstlisting}
+
+After the cube is captured, the cube is stored in the format specified in the Cube format variable, or not at all if that is specified. The cube is then transferred using the functions in the \textit{CubeDMADriver} module and the caches flushed and cleaned.  When the compressed cube is received in the processing system, it is stored.
+
+
+\subsubsection{DMAMemoryManager}
+
+The \textit{DMAMemoryManager} is largely described in chapter. The init function is always run when the module is initialized, this function initializes two channels or devices for DMA, one for receiving and one for sending. The driver holds one struct called \textit{device\_data} each channel, shown in listing \ref{lst::driverchannel}
+
+\begin{lstlisting}[language=C++, caption={Bit packing}, label={lst::driverchannel}]
+struct device_data{
+	int    major_number;
+	struct class*  p_device_class;
+	struct device* p_device;
+	struct cdev cdev;
+	struct dma_data *p_dma_data;
+};
+
+static struct device_data dma_channel[2]; //0=send 1=recieve
+\end{lstlisting}
+
+This \textit{device\_data} struct holds the major number for the devices, device pointer, class pointer and a \textit{dma\_data} pointer. The \textit{dma\_data} pointer is a pointer to the DMA send and recieve memory region, this is used when cleaning and flushing cache.
+
+
+\subsection{CSP Service}
+The CSP protocol is written in C and the design is written in C++, therefore a C interface ha been written. It consists of two files, one cpp file that wraps the C++ functions, this is shown in listing \ref{lst::cppwrap} and one header file that decleares the function wrappers and a void pointer that is re casted to point to C++ objects, this is shown in listing \ref{lst::hwrap}.
+
+\begin{lstlisting}[language=C++, caption={Wrapper for C++}, label={lst::cppwrap}]
+extern "C"
+{
+    CameraHandle_C create_camera_handle() {
+      return new HSICamera();
+    }
+
+    void  initialize_camera(CameraHandle_C p, double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube) {
+      return ((HSICamera *)p)->initialize(exposureMs, rows, columns, frames, fps, cube);
+    }
+
+    void run_camera(CameraHandle_C p) {
+      return ((HSICamera *)p)->runCubeCapture();
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++, caption={Header for C}, label={lst::hwrap}]
+typedef void * CameraHandle_C;
+CameraHandle_C create_camera_handle();
+void    initialize_camera(CameraHandle_C p, double exposureMs, int rows, int columns, int frames, double fps, cubeFormatC cube);
+void    run_camera(CameraHandle_C p);
+\end{lstlisting}
+
+A simple CSP service for the payload node has been written and a client for the ground node that can send commands to the service. The service connect, bind and listens on a socket, then it accepts a connection if a client connects to it. When a connection is accepted and the packet received, the packet is read, the first four bytes of the packet is the command, this service only uses two commands, initialize and capture. The initialize routine creates the \textit{HSICamera} module and runs the initialization function. This function requires six arguments, as described in chapter \ref{chap::systemdesign}, the arguments is extracted from the CSP packet and the function run. The capture routine of the CSP service runs the cube capturing function.
+
+On the client side, two functions is needed to call the service with the commands. These functions must be added as a command to the CSP terminal, this is done with the function in listing \ref{lst::addcspclient}. This tells the CSP network that when the init command is used for this node, the \textit{cli\_hsi\_init} is run, and the same goes for \textit{cli\_hsi\_capture} when the capture command is used.
+
+\begin{lstlisting}[language=C++, caption={Adding CSP commands}, label={lst::addscpclient}]
+typedef void * CameraHandle_C;
+void cli_hsi_init_cmds(cli_cmd *c_hsi)
+{
+	cli_cmd *c_hsi_init =
+		cli_add("init", "<CSP ID>",
+			"Cli hsi init.", cli_hsi_init, c_hsi);
+
+	cli_cmd *c_hsi_capture =
+		cli_add("capture", " ...", " ... ", cli_hsi_capture, c_hsi);
+}
+\end{lstlisting}
+
+In the \textit{cli\_hsi\_init}, the CSP packet is packaged with the command and data, this data is the initialization variables for the camera and are user inputs. The client connects to the CSP node and service. The node is identified with a ID number, this ID is set when the CSP nodes are built and compiled. When a connection is accepted the package sent to the service. The same pattern goes for the \textit{cli\_hsi\_capture} as well.
+
+Figure \ref{fig::sequence} shows a sequence diagram of how one cube is captured with a CSP service. The client sends the init command with parameters to the service, this opens the camera  and runs \textit{initialize} function in \textit{HSICamera}, that configures the camera and allocates memory. Then a capture cube command is sent from the client, this runs the cube capturing routine int \textit{HSICamera}, this routine capture frames from the camera and bins them, then stores them. Then the \textit{CubeDMADriver} gets initialized for data transfer.Tthen the cache is cleaned, a cube is transfered, compressed and transfered back again and the cachesflushed. Then the cube is stored and the camera closed.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{images/sequence.png}
+	\caption{Seguence diagram}
+	\label{fig::sequence}
+\end{figure}
+
+\subsection{Challenges}
+
+A few other methods for memory allocation have been tried before the chosen solution was arrived on. The function \textit{kmalloc (size\_t size, gfp\_t flags)} allocates a contiguous region of memory, that can be set as non movable, meaning that the kernel won't swap the pages out of memory. It returns a pointer to a kernel logical address of the size specified. The maximum size this function can allocate on this particular system is 4MB making it unusable for a cube.
+
+Another function that are made for the specific purpose of allocating memory for DMA transfer is \textit{dma\_alloc\_coherent(struct device *dev, size\_t size, dma\_addr\_t *dma\_handle, gfp\_t flag)}. The arguments for this function is a device structure which contains information on which driver it is, and a dma\_handle struct that can be used for different kernel support when it comes to DMA. The size of the region and flags for telling the kernel what type of memory it is and how the operation should be executed. The return value is a pointer to kernel virtual address space. If there is room for the entire memory space in main memory, the memory space is allocated there. If there is not room for this memory space, the kernel tries to move pages out of main memory to make room. The kernel can't move pages that are marked as non movable, and if non movable pages make main memory too fragmented, the function fails.
+
+Memory fills up with non movable pages quite quickly, the largest amount of memory allocated on the zedboard with \textit{dma\_alloc\_coherent} is 15MB. Linux has a framework for contiguous memory allocation, this is called CMA. It can reserve memory from the kernel at boot time. This without any rebuild of the kernel, arguments are simply passed to the kernel at boot time, that specifies the size of memory and which kernel modules that are allowed to use it. These drivers can allocate this memory with CMA functions or when the \textit{dma\_alloc\_coherent} function is used, the function use the CMA memory automatically. The problem with this was that the kernel wouldn't give up more than 64MB to CMA, for unknown reasons. It is also possible to pass arguments to the kernel at boot time that tells it to reserve memory or to not use the whole memory, this also proved to be unsuccessful for unknown reasons. For any further information of the structure of drivers, Linux kernel or Linux memory more information can be found in the Linux Device Drivers book, free online \cite{ldd3}.
+
+
+\section{Analysis}
+\label{chap:analDisc}
+
+
+\subsection{Discussion}
+
+\section{Appendices}
+\begin{tabular}{ll}
+Appendix 1: & C++ program\\
+Appendix 2: & Median binned images\\
+Appendix 3: & Mean binned images\\
+\end{tabular}
+
+\bibliographystyle{plain}
+\bibliography{biblio.bib}
+
+\end{document}

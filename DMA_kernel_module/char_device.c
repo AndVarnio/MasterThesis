@@ -13,9 +13,6 @@
 
 struct device_data{
 	int    major_number;           	///< Stores the device number -- determined automatically
-	char   message[256];           	///< Memory for the string that is passed from userspace
-	short  size_of_message;					///< Used to remember the size of the string stored
-	int    numberOpens;            	///< Counts the number of times the device is opened
 	struct class*  p_device_class; 	///< The device-driver class struct pointer
 	struct device* p_device; 				///< The device-driver device struct pointer
 	struct cdev cdev;
@@ -145,13 +142,13 @@ static void __exit ebbchar_exit(void){
   device_destroy(dma_channel[0].p_device_class, MKDEV(dma_channel[0].major_number, 0));     // remove the device
   class_unregister(dma_channel[0].p_device_class);                          // unregister the device class
   class_destroy(dma_channel[0].p_device_class);                             // remove the device class
-  unregister_chrdev(dma_channel[0].major_number, "ebbcharsend");             // unregister the major number
+  unregister_chrdev(dma_channel[0].major_number, "Send channel");             // unregister the major number
 	cdev_del(&dma_channel[0].cdev);
 
 	device_destroy(dma_channel[1].p_device_class, MKDEV(dma_channel[1].major_number, 0));     // remove the device
   class_unregister(dma_channel[1].p_device_class);                          // unregister the device class
   class_destroy(dma_channel[1].p_device_class);                             // remove the device class
-  unregister_chrdev(dma_channel[1].major_number, "ebbcharrecieve");             // unregister the major number
+  unregister_chrdev(dma_channel[1].major_number, "Recieve channel");             // unregister the major number
 	cdev_del(&dma_channel[1].cdev);
   printk(KERN_INFO "EBBChar: Goodbye from the LKM!\n");
 }
@@ -172,9 +169,8 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 	return 0;
 }
 
-// TODO Figure out what this funct is doing
 static int dev_release(struct inode *inodep, struct file *filep){
-  printk(KERN_INFO "EBBChar: Device successfully closed\n");
+  printk(KERN_INFO "Device successfully closed\n");
   return 0;
 }
 

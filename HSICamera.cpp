@@ -1,8 +1,8 @@
-#include<ueye.h>
-#include<stdio.h>
-#include<string.h>
+#include <ueye.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
-#include<time.h>
+#include <time.h>
 #include <sys/time.h>
 #include <arm_neon.h>
 #include <algorithm>
@@ -35,18 +35,15 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
 
   printf("Initializing camera parameters\n");
   g_sensor_rows_count = rows;
+  // g_sensor_columns_count = columns/2;//Subsampling
+  // g_bands_count = columns/2;  //Subsampling
   g_sensor_columns_count = columns;
   g_bands_count = columns;
   g_bands_binned_per_row_count = g_bands_count;
   g_frame_count = frames;
   g_framerate = fps;
+  cube_type = cube;
 
-  triggermode = Freerun;
-  cube_type = None;
-
-  p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
-  p_frame_ID = new int[RAWFRAMESCOUNT];
-  g_bit_depth = 16;
 
   ////////////////////Set up binning variables////////////////////
   g_samples_last_bin_count = g_bands_count%BINNINGFACTOR;
@@ -73,13 +70,12 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   }
 
   ////////////////////Initialize///////////////////
-  // Set pixel clock
-  UINT pixel_clock_range[3];
   int errorCode;
 
+  // Set maximum pixel clock
+  UINT pixel_clock_range[3];
   errorCode = is_PixelClock(camera, IS_PIXELCLOCK_CMD_GET_RANGE, (void*)pixel_clock_range, sizeof(pixel_clock_range));
   if (errorCode == IS_SUCCESS){
-    printf("min: %d max: %d intervall: %d\n", pixel_clock_range[0], pixel_clock_range[1], pixel_clock_range[2]);
     int errorCode = is_PixelClock(camera, IS_PIXELCLOCK_CMD_SET, (void*)&pixel_clock_range[1], sizeof(pixel_clock_range[1]));
     if(errorCode!=IS_SUCCESS){
       printf("Something went wrong with setting pixel clock, error code: %d\n", errorCode);
@@ -136,17 +132,20 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   //   printf("Something went wrong with the subsampling, error code: %d\n", errorCode);
   // };
 
-  // errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
-  // };
-  //
-  // errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  // if(errorCode!=IS_SUCCESS){
-  //   printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
-  // };
+  errorCode = is_SetGainBoost(camera, IS_SET_GAINBOOST_ON);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the gainboost, error code: %d\n", errorCode);
+  };
+
+  errorCode = is_SetHardwareGain (camera, 50, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  if(errorCode!=IS_SUCCESS){
+    printf("Something went wrong with the hardware gain, error code: %d\n", errorCode);
+  };
 
   ////////////// Allocate memory
+  p_imagesequence_camera = new char*[RAWFRAMESCOUNT];
+  p_frame_ID = new int[RAWFRAMESCOUNT];
+
   switch(triggermode)
   {
     case Swtrigger:
@@ -171,11 +170,6 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
 
       is_InitImageQueue (camera, 0);
 
-      // p_binned_frames = new uint16_t*[g_frame_count];
-      // for(int image=0; image<g_frame_count; image++){
-      //   p_binned_frames[image] = new uint16_t[g_bands_binned_per_row_count*g_sensor_rows_count];//TODO pixeldepth
-      // }
-
       errorCode = is_SetFrameRate(camera, g_framerate, &newFrameRate);
       if(errorCode!=IS_SUCCESS){
         printf("Something went wrong with setting the framerate, error code: %d\n", errorCode);
@@ -184,6 +178,7 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
       errorCode = is_CaptureVideo (camera, IS_WAIT);
       if(errorCode!=IS_SUCCESS){
         printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
+        exit (EXIT_FAILURE);
       };
       }
       break;
@@ -205,7 +200,7 @@ void HSICamera::initialize(double exposureMs, int rows, int columns, int frames,
   send_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
                   PROT_READ | PROT_WRITE, MAP_SHARED, fd_send, 0);
 
-  recieve_channel = (struct dma_data *)mmap(NULL, sizeof(struct dma_data),
+  recieve_channel = (uint8_t *)mmap(NULL, sizeof(struct dma_data),
                   PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
 
   if ((send_channel == MAP_FAILED) || (recieve_channel == MAP_FAILED)) {
@@ -238,19 +233,9 @@ void HSICamera::swTriggerCapture(){
           p_hsi_cube[cubeRow][band*g_sensor_rows_count+pixel] = p_raw_single_image[g_sensor_columns_count*(g_sensor_rows_count-1)-g_sensor_columns_count*pixel+band];
         }
       }
-        // usleep(20000);
     }
 }
 void HSICamera::freeRunCapture(){
-  ////////////// For debugging
-  double dblFPS;
-  is_GetFramesPerSecond (camera, &dblFPS);
-  printf("Actual framerate: %f\n", dblFPS);
-
-  for (uint32_t i = 0; i < CUBE_SIZE; i++) {
-    recieve_channel->buffer[i].value = 0xFF;
-	}
-  ///////////////////////////
 
   switch(binning_method)
   {
@@ -269,11 +254,12 @@ void HSICamera::freeRunCapture(){
     default:
       break;
   }
-
+  // Write un-compressed cube to file
   if(cube_type!=None){
     writeCubeToFile();
   }
 
+  // Compress and write to file
   transferDMA();
   // writeRawDataToFile(send_channel->buffer, g_cube_rows_count*g_bands_binned_per_row_count*g_sensor_rows_count);
 
@@ -299,8 +285,13 @@ void HSICamera::testBinning(){
 
 
   char* p_raw_frame;
-  INT imagesequence_id = 0;
+  INT imagesequence_id = 1;
   int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
+
+  // INT errorCode = is_CaptureVideo (camera, IS_DONT_WAIT);
+  // if(errorCode!=IS_SUCCESS){
+  //   printf("Something went wrong with putting camera in freerun mode, error code: %d\n", errorCode);
+  // };
 
   for(int image_number=0; image_number<g_frame_count; image_number++){
     // gettimeofday(&tv1, NULL);
@@ -336,7 +327,7 @@ void HSICamera::testBinning(){
     // totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
     gettimeofday(&tv1, NULL);
     // Copy values to 16 bit array
-
+    // AOI resolution
     int sensor_columns_count = 1936;
     int image_pos_offset_first_row = image_y_offset_sensor * sensor_columns_count * 2 + image_x_offset_sensor * 2;
     int image_pos_offset_next_row = 0;
@@ -350,20 +341,23 @@ void HSICamera::testBinning(){
       }
       image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
     }
-
-    // uint8_t *p_pixels_in_frame8_t = p_pixels_in_frame;
+    /////////////////////////////
+    // printf("imageseq id: %d\n", imagesequence_id);
+    // Normal resolution
     // uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
     // for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
     //   p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
     // }
-
+    ///////////////////
+    // printf("imageseq id: %d\n", imagesequence_id);
     // printf("%u %u-%u\n", *(p_pixels_in_frame+460800), (unsigned char)p_raw_frame[0+460800], (unsigned char)p_raw_frame[1+460800]);
     int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
-
+    // printf("%d\n", image_number);
     // gettimeofday(&tv1, NULL);
     // Binn image
     #pragma omp parallel for num_threads(2)
     for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
+      // printf("imageseq id: %d\n", imagesequence_id);
       int row_offset = sensor_row*g_sensor_columns_count;
       int binned_rows_offset = sensor_row*g_bands_binned_per_row_count;
 
@@ -374,6 +368,8 @@ void HSICamera::testBinning(){
 
         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
+        // bitonicMerge4(p_pixels_in_frame+row_and_bin_offset_raw_frame);
+        // bitonicMerge8(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, 12);
         // bitonicMerge6(p_pixels_in_frame+row_and_bin_offset_raw_frame);
@@ -399,40 +395,38 @@ void HSICamera::testBinning(){
 }
 
 void HSICamera::captureSIMDMedianBinning(){
-  ////////For debugging
-  struct timeval  tv1, tv2, tv3, tv4;
-  double totTime = 0;
-  gettimeofday(&tv1, NULL);
-  ////////////////////
-
   char* p_raw_frame;
   INT imagesequence_id = 0;
   int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
 
   for(int image_number=0; image_number<g_frame_count; image_number++){
-    // gettimeofday(&tv1, NULL);
+
     int errorCode;
     do{
       errorCode = is_WaitForNextImage(camera, 1000, &p_raw_frame, &imagesequence_id);
-      // printf("Returned imageseq id: %d\n", imagesequence_id);
       if(errorCode!=IS_SUCCESS){
         is_UnlockSeqBuf (camera, imagesequence_id, p_raw_frame);
         printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
       }
     }while(errorCode!=IS_SUCCESS);
 
-    // gettimeofday(&tv2, NULL);
-    // totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    gettimeofday(&tv1, NULL);
-    // Copy values to 16 bit array
+
+    int sensor_columns_count = 1936;
+    int image_pos_offset_first_row = image_y_offset_sensor * sensor_columns_count * 2 + image_x_offset_sensor * 2;
+    int image_pos_offset_next_row = 0;
+
     uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
-    for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+    for(int image_row=0; image_row<g_sensor_rows_count; image_row++){
+      for(int image_pixel=0; image_pixel<g_sensor_columns_count; image_pixel++){
+        p_pixels_in_frame[image_row*g_sensor_columns_count+image_pixel] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2]) << 8
+        | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2+1];
+      }
+      image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
     }
 
-    gettimeofday(&tv1, NULL);
+    int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
     // Binn image
-    // #pragma omp parallel for num_threads(2)
+    #pragma omp parallel for num_threads(2)
     for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
       int row_offset = sensor_row*g_sensor_columns_count;
       int binned_rows_offset = sensor_row*g_bands_binned_per_row_count;
@@ -442,32 +436,22 @@ void HSICamera::captureSIMDMedianBinning(){
 
         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
         bitonicMerge12(p_pixels_in_frame+row_and_bin_offset_raw_frame);
-        // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, 6);
-        // bitonicMerge6(p_pixels_in_frame+row_and_bin_offset_raw_frame);
-        p_binned_frames[image_number][binned_rows_offset+bin_number] = p_pixels_in_frame[row_and_bin_offset_raw_frame+3];
+
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number].value = __bswap_16 (p_pixels_in_frame[row_and_bin_offset_raw_frame+6]);
         bin_offset += BINNINGFACTOR;
       }
       if(g_samples_last_bin_count>0){
         bubbleSort(p_pixels_in_frame+row_offset+last_pixel_in_row_offset, g_samples_last_bin_count);
-        //insertionSort(p_raw_frame, row_offset+last_pixel_in_row_offset, g_samples_last_bin_count);
-        p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
+
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+g_full_binns_per_row_count].value = p_pixels_in_frame[last_pixel_in_row_offset+(g_samples_last_bin_count/2)];
       }
     }
-    // printf("Unlocking imageseq id: %d\n", imagesequence_id);
     is_UnlockSeqBuf (camera, imagesequence_id, p_raw_frame);
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
 }
-
-  printf("avg binning time: %f\n", totTime/g_frame_count);
 }
 
 void HSICamera::captureSIMDMeanBinning(){
-  ////////For debugging
-  struct timeval  tv1, tv2, tv3, tv4;
-  gettimeofday(&tv1, NULL);
-  double totTime = 0;
-  ////////////////////
+
   uint16_t newArr1[BINNINGFACTOR];
   uint16_t newArr2[BINNINGFACTOR];
   uint16_t newArr3[BINNINGFACTOR];
@@ -478,7 +462,7 @@ void HSICamera::captureSIMDMeanBinning(){
   int last_pixel_in_row_offset = g_full_binns_per_row_count*BINNINGFACTOR;
 
   for(int image_number=0; image_number<g_frame_count; image_number++){
-    // gettimeofday(&tv1, NULL);
+
     int errorCode;
     do{
       errorCode = is_WaitForNextImage(camera, 1000, &(p_raw_frame), &imagesequence_id);
@@ -489,16 +473,21 @@ void HSICamera::captureSIMDMeanBinning(){
       }
     }while(errorCode!=IS_SUCCESS);
 
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    gettimeofday(&tv1, NULL);
-    // Copy values to 16 bit array
+    int sensor_columns_count = 1936;
+    int image_pos_offset_first_row = image_y_offset_sensor * sensor_columns_count * 2 + image_x_offset_sensor * 2;
+    int image_pos_offset_next_row = 0;
+
     uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
-    for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+    for(int image_row=0; image_row<g_sensor_rows_count; image_row++){
+      for(int image_pixel=0; image_pixel<g_sensor_columns_count; image_pixel++){
+        p_pixels_in_frame[image_row*g_sensor_columns_count+image_pixel] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2]) << 8
+        | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2+1];
+      }
+      image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
     }
 
-    gettimeofday(&tv1, NULL);
+    int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
+
     // Binn image
     #pragma omp parallel for num_threads(2)
     for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
@@ -535,10 +524,8 @@ void HSICamera::captureSIMDMeanBinning(){
         uint16_t totPixVal1 = vgetq_lane_u16(vec1_16x8, 0) + vgetq_lane_u16(vec1_16x8, 1) + vgetq_lane_u16(vec1_16x8, 2) + vgetq_lane_u16(vec1_16x8, 3);
         uint16_t totPixVal2 = vgetq_lane_u16(vec1_16x8, 4) + vgetq_lane_u16(vec1_16x8, 5) + vgetq_lane_u16(vec1_16x8, 6) + vgetq_lane_u16(vec1_16x8, 7);
 
-        p_binned_frames[image_number][binned_rows_offset+bin_number] = (unsigned char)(totPixVal1/BINNINGFACTOR);
-        p_binned_frames[image_number][binned_rows_offset+bin_number+1] = (unsigned char)(totPixVal2/BINNINGFACTOR);
-
-
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number].value = (unsigned char)(totPixVal1/BINNINGFACTOR);
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number+1].value = (unsigned char)(totPixVal2/BINNINGFACTOR);
         bin_offset += BINNINGFACTOR;
 
       }
@@ -547,24 +534,15 @@ void HSICamera::captureSIMDMeanBinning(){
         for(int bin_number=0; bin_number<g_samples_last_bin_count; bin_number++){
           tot_pixel_val = p_pixels_in_frame[g_bands_binned_per_row_count*BINNINGFACTOR+bin_number];
         }
-        p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+g_full_binns_per_row_count].value = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
 
         }
     }
     is_UnlockSeqBuf (camera, 1, p_raw_frame);
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-}
-
-  printf("avg binning time: %f\n", totTime/g_frame_count);
+  }
 }
 
 void HSICamera::captureMeanBinning(){
-  ////////For debugging
-  struct timeval  tv1, tv2, tv3, tv4;
-  double totTime = 0;
-  gettimeofday(&tv1, NULL);
-  ////////////////////
 
   char* p_raw_frame;
   int imagesequence_id = 0;
@@ -577,24 +555,26 @@ void HSICamera::captureMeanBinning(){
       errorCode = is_WaitForNextImage(camera, 2000, &(p_raw_frame), &imagesequence_id);
 
       if(errorCode!=IS_SUCCESS){
-
-
         is_UnlockSeqBuf (camera, 1, p_raw_frame);
         // printf("Something went wrong with the is_WaitForNextImage, error code: %d\n", errorCode);
       }
     }while(errorCode!=IS_SUCCESS);
 
-    gettimeofday(&tv2, NULL);
-    totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    gettimeofday(&tv1, NULL);
+    int sensor_columns_count = 1936;
+    int image_pos_offset_first_row = image_y_offset_sensor * sensor_columns_count * 2 + image_x_offset_sensor * 2;
+    int image_pos_offset_next_row = 0;
 
-    // Copy values to 16 bit array
     uint16_t p_pixels_in_frame[g_sensor_rows_count*g_sensor_columns_count];
-    for(int i=0; i<g_sensor_rows_count*g_sensor_columns_count; i++){
-      p_pixels_in_frame[i] = uint16_t(p_raw_frame[i*2]) << 8 | p_raw_frame[i*2+1] ;
+    for(int image_row=0; image_row<g_sensor_rows_count; image_row++){
+      for(int image_pixel=0; image_pixel<g_sensor_columns_count; image_pixel++){
+        p_pixels_in_frame[image_row*g_sensor_columns_count+image_pixel] = uint16_t(p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2]) << 8
+        | p_raw_frame[image_pos_offset_first_row+image_pos_offset_next_row+image_row*g_sensor_columns_count*2+image_pixel*2+1];
+      }
+      image_pos_offset_next_row += image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor + image_x_offset_sensor; //TODO Fix odd image width number offset right sde of image
     }
 
-    // gettimeofday(&tv1, NULL);
+    int binned_frames_offset = g_binned_pixels_per_frame_count * image_number;
+
     // Binn image
     #pragma omp parallel for num_threads(2)
     for(int sensor_row=0; sensor_row<g_sensor_rows_count; sensor_row++){
@@ -612,14 +592,14 @@ void HSICamera::captureMeanBinning(){
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+3];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+4];
         tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+5];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
-        // tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+6];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+7];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+8];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+9];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+10];
+        tot_pixel_val += (int)p_pixels_in_frame[row_and_bin_offset_raw_frame+11];
 
-        p_binned_frames[image_number][binned_rows_offset+bin_number] = (uint16_t)(tot_pixel_val/BINNINGFACTOR);
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+bin_number].value = (uint16_t)(tot_pixel_val/BINNINGFACTOR);
 
         bin_offset += BINNINGFACTOR;
       }
@@ -628,16 +608,12 @@ void HSICamera::captureMeanBinning(){
         for(int bin_number=0; bin_number<g_samples_last_bin_count; bin_number++){
           tot_pixel_val = p_pixels_in_frame[g_bands_binned_per_row_count*BINNINGFACTOR+bin_number];
         }
-        p_binned_frames[image_number][binned_rows_offset+g_full_binns_per_row_count] = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
+        send_channel->buffer[binned_frames_offset+binned_rows_offset+g_full_binns_per_row_count].value = (uint16_t)(tot_pixel_val/g_samples_last_bin_count);
 
         }
     }
     is_UnlockSeqBuf (camera, 1, p_raw_frame);
-    // gettimeofday(&tv2, NULL);
-    // totTime += (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
 }
-
-  printf("avg binning time: %f\n", totTime/g_frame_count);
 }
 
 // Sends cube to FPGA and waits until it has sent compressed image back
@@ -660,7 +636,7 @@ void HSICamera::transferDMA(){
 				.width = 107,
 				.height = 720,
 				.depth = 500,
-				.size_row = 53500
+				.size_row = 77040
 			}
 		},
 		.interrupt_enable = {
@@ -709,33 +685,35 @@ void HSICamera::transferDMA(){
   ioctl(fd_send, 1, &dummy); //TODO: Make enum for clean and flush command
 
   ///////////////Debug stuff
-  int nPrinted = 0;
-  uint32_t matches = 0;
-  uint32_t misses = 0;
-  printf("i:   src   dest\n\r");
-  for (uint32_t i = 0; i < CUBE_SIZE; i++){
-    // if (source[i] == destin[i]) {
-    if (send_channel->buffer[i].value == recieve_channel->buffer[i].value) {
-      matches++;
-    }
-    else {
-      if (nPrinted<20) {
-        nPrinted++;
-        // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
-        printf("%u: %4u %4u\n\r", i, send_channel->buffer[i].value, recieve_channel->buffer[i].value);
-      }
-    }
-  }
+  // int nPrinted = 0;
+  // uint32_t matches = 0;
+  // uint32_t misses = 0;
+  // printf("i:   src   dest\n\r");
+  // for (uint32_t i = 0; i < CUBE_SIZE; i++){
+  //   // if (source[i] == destin[i]) {
+  //   if (send_channel->buffer[i].value == recieve_channel->buffer[i].value) {
+  //     matches++;
+  //   }
+  //   else {
+  //     if (nPrinted<20) {
+  //       nPrinted++;
+  //       // printf("%u: %4u %4u\n\r", i, source[i], destin[i]);
+  //       printf("%u: %4u %4u\n\r", i, send_channel->buffer[i].value, recieve_channel->buffer[i].value);
+  //     }
+  //   }
+  // }
 
-	if (matches != CUBE_SIZE) {
-		fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
-				(double)matches*100/CUBE_SIZE);
-
-	}
-	else {
-		printf("Transfer success!\n\r");
-	}
+	// if (matches != CUBE_SIZE) {
+	// 	fprintf(stderr, "ERROR: Only %f%% of the data matches\n\r", \
+	// 			(double)matches*100/CUBE_SIZE);
+  //
+	// }
+	// else {
+	// 	printf("Transfer success!\n\r");
+	// }
   /////////////////////////////////
+  printf("Transfer success!\n\r");
+  writeRawDataToFile(recieve_channel, cdma.get_received_length());
 }
 
 
@@ -792,53 +770,36 @@ void HSICamera::writeRawDataToFile(uint12_t* data, int count){
   char timeSystemString[32];
   sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
   char file_path[64];
-  strcpy(file_path, "/home/root/capture/");
+  strcpy(file_path, "/home/root/");
   strcat(file_path, timeSystemString);
-  strcat(file_path, "rawSensorData.raw");
+  strcat(file_path, "Data.raw");
 
   //Write
   FILE * fp;
   fp = fopen (file_path,"wb");
   if (fp==NULL) {fputs ("File error\n",stderr); exit (1);}
-  // printf("Writing to file\n" );
-  printf("Writing to file: sizeof(uint12_t)=%d count=%d \n", sizeof(uint12_t), count );
-  // for(int i=0; i<count; i++){
-    fwrite (data, sizeof(uint12_t), count, fp);//TODO g_bit_depth
-  // }
-  // fclose (fp);
 
-  // char buffer[] = { 'x' , 'y' , 'z' };
-  // printf("Writing to file: sizeof(char)=%d sizeof(buffer)=%d \n", sizeof(char), sizeof(buffer) );
-  // fwrite (buffer , sizeof(char), sizeof(buffer), fp);
+  fwrite (data, sizeof(uint12_t), count, fp);//TODO g_bit_depth
   fclose (fp);
 
 }
 
-void HSICamera::writeRawDataToFile(void* data, int size_samples, int count_samples){
+void HSICamera::writeRawDataToFile(uint8_t* data, int count){
   //Name file
   struct timespec time_system;
   clock_gettime(CLOCK_REALTIME, &time_system);
   char timeSystemString[32];
   sprintf(timeSystemString, "%lli", (long long)time_system.tv_nsec);
   char file_path[64];
-  strcpy(file_path, "/home/root/capture/");
+  strcpy(file_path, "/home/root/");
   strcat(file_path, timeSystemString);
-  strcat(file_path, "rawSensorData.raw");
+  strcat(file_path, "Data.raw");
 
   //Write
   FILE * fp;
   fp = fopen (file_path,"wb");
   if (fp==NULL) {fputs ("File error\n",stderr); exit (1);}
-  // printf("Writing to file\n" );
-  printf("Writing to file: sizeof(uint12_t)=%d count=%d \n", size_samples, count_samples );
-  // for(int i=0; i<count; i++){
-    fwrite (data, size_samples, count_samples, fp);//TODO g_bit_depth
-  // }
-  // fclose (fp);
-
-  // char buffer[] = { 'x' , 'y' , 'z' };
-  // printf("Writing to file: sizeof(char)=%d sizeof(buffer)=%d \n", sizeof(char), sizeof(buffer) );
-  // fwrite (buffer , sizeof(char), sizeof(buffer), fp);
+  fwrite (data, sizeof(uint8_t), count, fp);//TODO g_bit_depth
   fclose (fp);
 
 }
@@ -978,7 +939,51 @@ void HSICamera::bitonicMerge12(uint16_t* arr){
   vst1q_u16(arr+4, zippedResult.val[1]);
 }
 
+void HSICamera::bitonicMerge8(uint16_t* arr){
 
+  uint16x4_t vec1_16x4, vec2_16x4;
+  vec1_16x4 = vld1_u16(arr);
+  vec2_16x4 = vld1_u16(arr+4);
+
+  uint16x4_t max_vec = vmax_u16(vec1_16x4, vec2_16x4);
+  uint16x4_t min_vec = vmin_u16(vec1_16x4, vec2_16x4);
+
+  vec1_16x4 = vrev32_u16(max_vec);
+
+  max_vec = vmax_u16(vec1_16x4, min_vec);
+  min_vec = vmin_u16(vec1_16x4, min_vec);
+
+  uint16x4x2_t shuffleTmp = vtrn_u16(min_vec, max_vec);
+
+  max_vec = vmax_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+  min_vec = vmin_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+
+  uint16x4x2_t zipped_comp = vzip_u16(max_vec, min_vec);
+  uint16x4_t reversed_zipped_vector = vrev64_u16(zipped_comp.val[1]);
+
+
+  // L1
+  max_vec = vmax_u16(reversed_zipped_vector, zipped_comp.val[0]);
+  min_vec = vmin_u16(reversed_zipped_vector, zipped_comp.val[0]);
+
+  shuffleTmp = vtrn_u16(min_vec, max_vec);
+  uint16x4x2_t interleavedTmp = vzip_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+
+
+  // L2
+  max_vec = vmax_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+  min_vec = vmin_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+
+  uint16x4x2_t vec1_L3 = vtrn_u16(min_vec, max_vec);
+
+  // L3
+  max_vec = vmax_u16(vec1_L3.val[0], vec1_L3.val[1]);
+  min_vec = vmin_u16(vec1_L3.val[0], vec1_L3.val[1]);
+
+  uint16x4x2_t zippedResult = vzip_u16(min_vec, max_vec);
+
+  vst1_u16(arr, zippedResult.val[0]);
+}
 
 void HSICamera::bitonicMerge6(uint16_t* arr){
 
@@ -1031,6 +1036,35 @@ void HSICamera::bitonicMerge6(uint16_t* arr){
   vst1_u16(arr+2, zippedResult.val[1]);
 }
 
+void HSICamera::bitonicMerge4(uint16_t* arr){
+
+  uint16x4_t vec1_16x4, vec2_16x4;
+
+  vec1_16x4 = vld1_lane_u16(arr, vec1_16x4, 0);
+  vec1_16x4 = vld1_lane_u16(arr+1, vec1_16x4, 1);
+  vec2_16x4 = vld1_lane_u16(arr+2, vec2_16x4, 0);
+  vec2_16x4 = vld1_lane_u16(arr+3, vec2_16x4, 1);
+
+  uint16x4_t max_vec = vmax_u16(vec1_16x4, vec2_16x4);
+  uint16x4_t min_vec = vmin_u16(vec1_16x4, vec2_16x4);
+
+  uint16x4x2_t zippedResult = vzip_u16(min_vec, max_vec);
+
+  max_vec = vmax_u16(zippedResult.val[1], zippedResult.val[0]);
+  min_vec = vmin_u16(zippedResult.val[1], zippedResult.val[0]);
+
+  uint16x4x2_t shuffleTmp = vtrn_u16(min_vec, max_vec);
+  uint16x4x2_t interleavedTmp = vzip_u16(shuffleTmp.val[0], shuffleTmp.val[1]);
+
+
+  // L2
+  max_vec = vmax_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+  min_vec = vmin_u16(interleavedTmp.val[0], interleavedTmp.val[1]);
+
+  uint16x4x2_t result = vtrn_u16(min_vec, max_vec);
+
+  vst1_u16(arr, result.val[0]);
+}
 
 void HSICamera::swap(uint16_t *xp, uint16_t *yp)
 {

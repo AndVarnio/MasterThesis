@@ -3,12 +3,10 @@
 
 #include <ueye.h>
 #include <stdlib.h>
-// #include "../DMA_kernel_module/dma_parameters.h"
 
 extern "C" {
 #include "DMA_kernel_module/dma_parameters.h"
 }
-// #include "CubeDMADriver.hpp"
 
 enum cubeFormat { Bil, Bip, Bsq, Raw, None };
 enum cameraTriggerMode {Freerun, Swtrigger, Hwtrigger};
@@ -26,7 +24,6 @@ class HSICamera
 
       HIDS camera = 1;
 
-
       char** p_imagesequence_camera;
       int* p_frame_ID;
 
@@ -38,13 +35,13 @@ class HSICamera
       uint16_t** p_binned_frames;
 
       struct dma_data* send_channel;
-      struct dma_data* recieve_channel;
+      uint8_t* recieve_channel;
 
       // Sensor spec
       int g_sensor_rows_count;
       int g_sensor_columns_count;
       int g_bands_count;
-      int g_bit_depth;
+      int g_bit_depth = 16;
 
       // Cube spec
       int g_cube_clumns_count;
@@ -54,7 +51,7 @@ class HSICamera
       // Driver spec
       int g_frame_count;
       double g_framerate;
-      cameraTriggerMode triggermode;
+      cameraTriggerMode triggermode = Freerun;
 
       // Binning
 
@@ -70,8 +67,8 @@ class HSICamera
 
       void swTriggerCapture();
       void freeRunCapture();
+      void writeRawDataToFile(uint8_t* data, int count);
       void writeRawDataToFile(uint12_t* data, int count);
-      void writeRawDataToFile(void* data, int size_samples, int count_samples);
       void writeSingleToFile();
       void writeBandsToSeparateFiles();
       void captureSIMDMedianBinning();
@@ -82,14 +79,16 @@ class HSICamera
       void transferDMA();
 
       const int RAWFRAMESCOUNT = 10;
-      const binningMode binning_method = testBinn;
+      const binningMode binning_method = simdMedian;
       const int BINNINGFACTOR = 12;
       int image_x_offset_sensor;
       int image_y_offset_sensor;
 
       // Binning
       void bitonicMerge12(uint16_t* arr);
+      void bitonicMerge8(uint16_t* arr);
       void bitonicMerge6(uint16_t* arr);
+      void bitonicMerge4(uint16_t* arr);
 
       void swap(uint16_t *xp, uint16_t *yp);
       void bubbleSort(uint16_t arr[], int n);
