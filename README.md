@@ -1,11 +1,11 @@
 
 # Create HW description files for DMA and CCSDS123.
 
-Clone the Smallsat student project repository from bitbucket
+Clone the Smallsat student project repository from bitbucket, the Vivado Design Suite is also needed for this tutorial, the version used here is 2018.3.
 [https://bitbucket.org/ntnusmallsat/smallsat_studentprojects/src/master/](https://bitbucket.org/ntnusmallsat/smallsat_studentprojects/src/master/)
 
 ## Create IP from CubeDMA design
-Open the cubedma project
+Open the cubedma project, this is located in the `[Path to smallsat student project repository]/lib/dataflow/cubedma/project/` folder.
 If the IP's used in the design have an old version update them
 
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/updateip.jpg?raw=true "Title")
@@ -90,7 +90,7 @@ i_fifo : xpm_fifo_sync
         dbiterr       => open
         );
 ```
-CubeDMA should now be ready to be packaged to a IP, go to tools --> create and package ip, go through the wizard. Under File Groups include all the vhd files from the src directory and under Customization Parameters mark all, then right click and edit parameters and check that all is visible in GUI. When everything is ready click Package IP, if this is successful, quit the project.
+CubeDMA should now be ready to be packaged to a IP, go to tools --> create and package ip, go through the wizard. Under File Groups include all the vhd files from the src directory and under Customization Parameters mark all, then right click and edit parameters and check that all is visible in GUI. When everything is ready navigate to review and package then click Package IP, if this is successful, quit the project.
 
 ## Create design
 Open a new Vivado project
@@ -109,14 +109,24 @@ Create block design and add these modules:
 
 The generic variables for ccsds123 and cubeDMA can be set by double clicking on the modules. Number of pipelines, sample depth and bus width in ccsds123 must match with axis width, component width and number of components in CubeDMA. Here's a example:
 
+### CCSDS123
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/ccsdsparam.jpg?raw=true "Title")
+
+###Cube DMA
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/cubedmaparam.jpg?raw=true "Title")
-In the  Zynq7 block, under MIO configurations see that all the I/O peripherals is connected with a MIO connection, if not change it to MIO.  Go to Interrupts, under PL-PS Interrupt ports check IRQ_F2P. Then add a 64bit hp slave axi interface if there is none already, under PS-PL Configuration.
+In the  Zynq7 block, under MIO configurations see that all the I/O peripherals is connected with a MIO connection, if some are connected as EMIO, change it to MIO.  Go to Interrupts, under PL-PS Interrupt ports check IRQ_F2P. Then add a 64bit hp slave axi interface if there is none already, under PS-PL Configuration. Figures on how this looks like follows:
+
+![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/zynqMIO.jpg?raw=true "Title")
+
+![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/zynqInterrupt.jpg?raw=true "Title")
+
+![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/zynqHPinterface.jpg?raw=true "Title")
 
 When all the modules are set up correctly, click on connection automation, this should add the interconnect and processor system reset block and connect them. The goal is to en up with something that looks like this:
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/TheDesign.jpg?raw=true "Title")
 
-Connect the rest as shown in the figure, then click on Validate design. If the design is valid, right click on the design file in source view and click create hdl wrapper.
+Connect the rest as shown in the figure, then click on Validate design. If the design is valid, click on the address editor tab, see that the address of cube DMA is set to 0x43C0_0000, or something higher, if not, change it to that. Then right click on the design 1 file in source view and click create hdl wrapper.
+
 ### Implement design
 Now click on generate bit stream to synthesize, implement and generate bit stream. If successful go to File --> export hardware, and remember to include bitstream. Then under file launch sdk, this creates a folder containing all the hardware files. The folder is [Project folder]/[Project name].sdk/design_1_wrapper_hw_platform_0
 > Written with [StackEdit](https://stackedit.io/).
@@ -130,19 +140,19 @@ This tutorial shows how to build a Embedded Linux system with Petalinux, that ca
 ## Getting Started
 
 
-First download and install the petalinux tool from Xilinx. ([https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html))
+First download and install the petalinux tool from Xilinx. In this tutorial, Ubuntu 16.4 with Petalinux 2018.3 have been used.  ([https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html))
 
 ## Building a system
 ### Create a project
 Set shell path and environmental variables
 ```
-. /[Path to petalinux installed folder]/settings.sh
+source /[Path to petalinux installed folder]/settings.sh
 ```
 
 Create a project with the board support package associated with the board. Board support packages for both Zedboard and Picozed can be found from the Xilinx Petalinux download page.
 
 ```
-petalinux-create --name [Project name] --source [Board support package]
+petalinux-create --type project --name [Project name] --source [Board support package]
 ```
 Navigate to the project
 ```
@@ -166,7 +176,7 @@ To reserve memory for DMA access, add reserved memory node to the device tree. U
 
 };
 ```
-This tells the boot loader that there is a reserved memory for a buffer at memory location 0x09000000 and that it 0x10000000 bytes long. The size of the memory can be changed according to if a system is built for Zedboard or Picozed.
+This tells the boot loader that there is a reserved memory for a buffer at memory location 0x09000000 and that it 0x10000000 bytes long. The size of the memory can be changed according to how much is needed.
 ### Configure project
 Configure linux build
 ```
@@ -182,7 +192,7 @@ petalinux-config -c rootfs
 ```
 The minimum amount of packages required to get a ueye camera to work is the build essentials and dropbear, these can be found in `Filesystem Packages --> misc --> packagegroup-core-buildessential` and `Filesystem Packages --> misc --> packagegroup-core-ssh-dropbear`. Add these, save and exit.
 ### Build project
-The project can now be built.
+The project can now be built. The build command sometimes fail, but then succeeds when it is run twice.
 ```
 petalinux-build
 ```
@@ -194,17 +204,17 @@ petalinux-package --boot --format BIN --fsbl images/linux/zynq_fsbl.elf
 The FPGA bitstream file can be found either in `images/linux` or in the folder containing HW description files. Use the `--force` option if it gives a error where it tells you that a boot file already exists.
 
 ### Boot project
-To boot the project from a SD card, a SD card needs to be at least 4GB.  Use a disk tool to partition the SD card into two parts that is separated with 4MB of space. One part is FAT32 filesystem, at least 60MB and is named BOOT. The other part is ext4 filesystem, takes up the rest of the space on the card and is named rootfs.
+To boot the project from a SD card, a SD card needs to be at least 4GB.  Use a disk tool to partition the SD card into two parts that is separated with 4MB of space. One part is FAT32 filesystem, at least 60MB and is named BOOT. The other part is ext4 filesystem, takes up the rest of the space on the card and is named rootfs. Gparted which is included in some Linux systems have been used in this tutorial.
 
 The files BOOT.BIN and image.ub contain the boot loader and kernel image, these are located in `images/linux` and are copied to the BOOT partition of the SD card. The root file system are packaged in a zip file rootfs.tar.gz located in `images/linux`, copy this to the rootfs partition and unpack it.
 ```
 tar xvf rootfs.tar.gz
 ```
-The system is now ready to boot. Communication is done over serial interface with a baud rate of 115200.
+The system is now ready to boot. Communication is done over serial interface with a baud rate of 115200. Connect a USB to the UART connection on the board then connect with for example minicom.
 ```
 minicom -b 115200 -D /dev/ttyACM0
 ```
-
+If the system have not booted, run the `boot` command and if any problems with the partitioning is encountered, try to fix it with the fsck tools. Run the `fsck [path to partition]` to get the tool to try and automatically locate and fix the error. The username and password to log in is both `root`.
 > Written with [StackEdit](https://stackedit.io/).
 
 # Getting camera to work
@@ -216,15 +226,19 @@ Connect the PC, Zedboard/Picozed and camera to the same network with Cat cables.
 
 ## Install driver
 ### Camera firmware
-The firmware on ueye GigE cameras has to be the same version as the driver version for them to work together. The only way to upload the firmware to the camera is with a program called Ids camera manager, this program needs a GUI operating system to open. The OS built for both the Zedboard and Picozed doesn't have GUI's. The solution for this is to upload the firmware from a Ubuntu PC that runs the same version of the driver as the embedded system. As of now, the latest version available for Embedded Linux is 4.90.6 and 4.91.1 for Linux. Therefore an older version for Linux is needed, all versions are available at  [https://en.ids-imaging.com/ueye-software-archive.html](https://en.ids-imaging.com/ueye-software-archive.html)
+The firmware on ueye GigE cameras has to be the same version as the driver version for them to work together. The only way to upload the firmware to the camera is with a program called Ids camera manager, this program needs a GUI operating system to open. The OS built for both the Zedboard and Picozed doesn't have GUI's. The solution for this is to upload the firmware from a Ubuntu PC that runs the same version of the driver as the embedded system. As of now, the latest version available for Embedded Linux is 4.90.6 and 4.91.1 for Ubuntu. Therefore an older version for Linux is needed, all versions are available at  [https://en.ids-imaging.com/ueye-software-archive.html](https://en.ids-imaging.com/ueye-software-archive.html)
 
 ### For PC
-Download and extract version 4.90.06 for your PC. Run `sh ./ueyesdk-setup-4.90.06-eth-amd64.gz.run`, for setting up Ethernet driver and `sh ./ueyesdk-setup-4.90.06-usb-amd64.gz.run`, for setting up USB driver. Then run `/etc/init.d/ueyeethdrc start`, for starting the Ethernet driver and `/etc/init.d/ueyeusbdrc start` for starting the USB driver. The USB driver is only needed here if a USB camera is going to be used as well.
+Download and extract version 4.90.6 for your PC. Run `sh ./ueyesdk-setup-4.90.06-eth-amd64.gz.run`, for setting up Ethernet driver and `sh ./ueyesdk-setup-4.90.06-usb-amd64.gz.run`, for setting up USB driver. Then run `/etc/init.d/ueyeethdrc start`, for starting the Ethernet driver and `/etc/init.d/ueyeusbdrc start` for starting the USB driver. The USB driver is only needed here if a USB camera is going to be used as well.
 
-Open IDS Camera Manager, by typing `idscameramanager` in a terminal window. Push Manual ETH configuration button, this is to set a static IP address for the camera. Fill in a suitable IP address and set the subnet mask to 255.255.255.0. Push the Upload starter firmware button, when it's finished uploading the right firmware is uploaded to the camera,  and you can quit the manager.  
+Open IDS Camera Manager, by typing `idscameramanager` in a terminal window, this is shown in the figure below.
+![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/cameramanager.jpg?raw=true "Title")
+
+Push Manual ETH configuration button, this is to set a static IP address for the camera. Fill in a suitable IP address and set the subnet mask to 255.255.255.0. Push the Upload starter firmware button, when it's finished uploading the right firmware, you can quit the manager.  
+
 
 ### For Embedded system
-Download the embedded hard float driver, version 4.90.06. Extract the zip file in Embedded Linux's root folder in the root file system.  Run the setup script, then run the executable driver to start the driver.  
+Download the embedded hard float driver, version 4.90.06 and copy it to the rootfs partition on the SD card. Extract the zip file in Embedded Linux's root folder in the root file system.  Run the setup script, then run the executable driver to start the driver.  
 ```
 /usr/local/share/ueye/bin/ueyesdk-setup.sh
 /etc/init.d/ueyeethdrc start
@@ -232,7 +246,7 @@ Download the embedded hard float driver, version 4.90.06. Extract the zip file i
 And run the executable for USB, if that is needed.   `/etc/init.d/ueyeusbdrc start`  
 If the camera is visible when runing `ueyesetip`, everything should be set up successfully.
 
-## Compile kernel module
+## Build kernel for kernel module
 
 ### Download the tools
 First download the Linux kernel source from [https://mirrors.edge.kernel.org/pub/linux/kernel/](https://mirrors.edge.kernel.org/pub/linux/kernel/). This has to be the right version, to check what version is running on the board, run `uname -r`.
@@ -250,17 +264,12 @@ cp <CONFIG_FILE> .config
 make ARCH=arm CROSS_COMPILE=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf- oldconfig
 make ARCH=arm CROSS_COMPILE=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-
 ```
-### Make kernel module
-Navigate to DMA_kernel_module in the project folder, from there run.
-```
-make KERNEL=<LINUX_SOURCE_DIR> CROSS=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-
-```
-Then copy char_device.ko to the board.
-```
-scp char_device.ko root@xxx.xxx.xxx.xxx:/home/root
-```
 
 ## Compile camera program
+Clone the project
+```
+git clone https://github.com/NOTANDers/MasterThesis.git
+```
 Navigate to the main folder and compile the camera program, the downloaded toolchain can be used to compile with.
 ```
 <TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-g++ -O3 main.cpp HSICamera.cpp CubeDMADriver.cpp -o cubeCapture -fopenmp -mfpu=neon -I usr/include usr/lib/libueye_api.so.4.90
@@ -269,12 +278,23 @@ Copy the executable to the board.
 ```
 scp cubeCapture root@xxx.xxx.xxx.xxx:/home/root
 ```
-
+## Make kernel module
+Navigate to DMA_kernel_module folder in the project folder, from there run.
+```
+make KERNEL=<LINUX_SOURCE_DIR> CROSS=<TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-
+```
+Then copy char_device.ko to the board.
+```
+scp char_device.ko root@xxx.xxx.xxx.xxx:/home/root
+```
 ## Run on board
 Insert the module into the kernel.
 ```
 insmod char_driver.ko
 ```
-Run camera program
+Run the camera program.
+```
+./cubeCapture
+```
 
 > Written with [StackEdit](https://stackedit.io/).
