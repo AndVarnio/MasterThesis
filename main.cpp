@@ -21,7 +21,7 @@ int main(int argc, char** argv){
   // camera.initialize(237, 6, 20, 1080, 1920, 8); //ui306
   // camera.initialize(118, 36, 30, 1216, 1936, 2254, Freerun, Bil); //GOAL parmeters
 
-  camera.initialize(10, 1216, 1936, 500, 2, None);
+  camera.initialize(10, 1024, 1024, 500, 20, None);
   // // camera.initialize(118, 6, 5, 1080, 1920, 2254, 25, Freerun, Bil);
   //
   camera.runCubeCapture();

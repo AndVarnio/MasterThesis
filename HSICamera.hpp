@@ -79,7 +79,7 @@ class HSICamera
       void transferDMA();
 
       const int RAWFRAMESCOUNT = 10;
-      const binningMode binning_method = simdMedian;
+      const binningMode binning_method = simdMean;
       const int BINNINGFACTOR = 12;
       int image_x_offset_sensor;
       int image_y_offset_sensor;
