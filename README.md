@@ -114,6 +114,7 @@ The generic variables for ccsds123 and cubeDMA can be set by double clicking on 
 
 ### Cube DMA
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/cubedmaparam.jpg?raw=true "Title")
+
 In the  Zynq7 block, under MIO configurations see that all the I/O peripherals is connected with a MIO connection, if some are connected as EMIO, change it to MIO.  Go to Interrupts, under PL-PS Interrupt ports check IRQ_F2P. Then add a 64bit hp slave axi interface if there is none already, under PS-PL Configuration. Figures on how this looks like follows:
 
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/zynqMIO.jpg?raw=true "Title")

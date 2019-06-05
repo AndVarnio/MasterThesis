@@ -8,7 +8,7 @@
 
 #include "csp/csp.h"
 
-#include "M6P.h"
+#include "M6P/M6P.h"
 #include "HYPSO.h"
 
 #include "magic_interface.h"
@@ -21,10 +21,10 @@ void hsi_service_task(void *arg)
 
 	// Bind file service socket
 	socket = csp_socket(CSP_SO_NONE);
-	csp_bind(socket, HSI_RGB_PORT);
+	csp_bind(socket, OPU_HSI_PORT);
 	csp_listen(socket, 5);
 
-
+	CameraHandle_C camera;
 	fprintf(stdout, "HSI service start\n");
 
 	// Serve connections
@@ -43,25 +43,49 @@ void hsi_service_task(void *arg)
 			continue;
 		}
 
-		//printf("Communication success: %s ee\n", packet->data);
 
 		switch (packet->data[0])
 		{
 		case 1:
 		{
-			fprintf(stdout, "Command 1: Capture cube\n");
+			fprintf(stdout, "Command 1: Init camera\n");
 
-      MHandle h = create_magic();
-      initialize_magic(h, 10, 1024, 1280, 500, 6, None);
-      run_magic(h);
-      printf("Captured image\n");
+			double exposureMs;
+			int rows;
+			int columns;
+			int frames;
+			double fps;
+			int cube;
+
+			memcpy(&exposureMs, &(packet->data[1]), 8);
+			memcpy(&rows, &(packet->data[3]), 4);
+			memcpy(&columns, &(packet->data[4]), 4);
+			memcpy(&frames, &(packet->data[5]), 4);
+			memcpy(&fps, &(packet->data[6]), 8);
+			memcpy(&cube, &(packet->data[8]), 4);
+
+      camera = create_camera_handle();
+      initialize_camera(camera, exposureMs, rows, columns, frames, fps, cube);
+
+			csp_buffer_free(packet);
 			break;
 		}
+
+		case 2:
+		{
+			fprintf(stdout, "Command 2: Capture cube\n");
+      run_camera(camera);
+      printf("Captured image\n");
+			csp_buffer_free(packet);
+			break;
+		}
+
 
 		default:
 		{
 			//packet->data[packet->length] = '\0';
 			printf("Received something: %s\n", packet->data);
+			csp_buffer_free(packet);
 			break;
 		}
 		}
