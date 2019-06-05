@@ -1,5 +1,5 @@
-#ifndef MAGIC_INTERFACE_H
-#define MAGIC_INTERFACE_H
+#ifndef HSI_INTERFACE_C_H
+#define HSI_INTERFACE_C_H
 
 
 #ifdef __cplusplus
