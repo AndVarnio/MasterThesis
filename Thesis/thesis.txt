@@ -31,7 +31,7 @@
 %	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
 %----------------------------------------------------------------------------------------
 
-\documentclass[12pt, a4paper, usenames,dvipsnames]{article}
+\documentclass[12pt, a4paper, usenames, dvipsnames]{report}
 \usepackage{fancyhdr} %Header og footer
 \usepackage[english]{babel}
 \usepackage[utf8x]{inputenc}
@@ -58,6 +58,7 @@
 \usepackage[skins,listings,breakable]{tcolorbox}
   \usepackage{colortbl}
   \definecolor{Lightgray}{RGB}{235,235,235}
+
 
 \pagestyle{fancy}
 \lhead{\leftmark}
@@ -93,7 +94,7 @@
 %	LOGO SECTION
 %----------------------------------------------------------------------------------------
 
-\includegraphics[width=4.5cm]{images/logo2_ntnu_u-slagord.png}\\[1cm] % Include a department/university logo - this will require the graphicx package
+\includegraphics[width=7.5cm]{images/hypso-logo.png}\\[1cm] % Include a department/university logo - this will require the graphicx package
 
 %----------------------------------------------------------------------------------------
 
@@ -146,23 +147,33 @@ Milica \textsc{Orlandic} % Supervisor's Name
 
 \pagenumbering{gobble}
 \begin{abstract}
+A design for a baseline image processing chain is made, this is supposed to be used on a satellite for ocean surveillance. The design can capture frames from the camera, compress the data and store it. The camera used is a IDS camera and the chip used for processing is a ZYNQ 7000 chip, this chip has a programmable logic part and a processing system part. The image capturing is occurs in the processing part of the chip and the compression in is occurring in the programmable logic part, the compression algorithm used is CCSDS123. To transfer data between the programmable logic and the processing system a FPGA imlpementation of a DMA core is used. There is still more work to be done on this before it is space ready, but can work as something to build on to get a acceptable end result.
+
+
+There is a goal of capturing 2254 12-bit images at a resolution of 1216x1936 with a framerate of 32fps, measurements for if this is possible is done. Median binning in the chip on the frames captured is also tested. It will be shown that it is not possible to reach the goal, but a reduced solution might be possible.
+
 
 \end{abstract}
 
 \newpage
+\section*{Preface}
+This thesis is written at the Department of Electronic systems at NTNU(Norwegian University of Science and Technology). Previously there have been a smaller project called the specialization project, one part of this thesis is a continuation on that and one part is not and the code from that project have been re-used in this thesis.
 
+I would like to thank my supervisors Milica Orlandic and Kjetil Svarstad for being available to answer all questions i might have had. I would also like to thank the whole HYPSO team for generally being very helpul and easy to work together with.
+\newpage
 \tableofcontents
 \newpage
 \listoffigures
 \newpage
 \pagenumbering{arabic}
 
-\section{Introduction}
-This thesis is written for the HYPSO mission that is managed by the smallsat lab at NTNU, the objective of the thesis is to get a baseline processing chain up and running for a hyperspectral camera on a cubesat and test it.
+\chapter{Introduction}
+
+This thesis is written for the HYPSO mission, this mission is managed by the smallsat lab at NTNU, the objective of the thesis is to get a baseline processing chain up and running for a hyperspectral camera on a cubesat and test it.
 
 The smallsat lab is a collaboration of graduate students, PhD's and PhD students, working on space and satellite related projects. The goal of the collaboration is to bring together space related activities at NTNU and make it more visible.
 
-The satellite is a cubesat, cubesats are satellites built with the cubesat standard, the standard has definitions for the size and weight of the satellite, and they are typically small in size\cite{cubesat}. The size of a satellite is measured in cubes or U's, 1U is a 10CM cube with a weight of 1-1.33Kg. The satellite in this project is 6U, a image of how it looks like is shown on figure \ref{fig::smallsatsat}, it have the dimensions 10cm x 20cm x 30cm.
+The satellite is a cubesat, cubesats are satellites built with the cubesat standard, the standard has definitions for the size and weight of the satellite, and they are typically small in size\cite{cubesat}. The size of a satellite is measured in cubes or U's, 1U is a 10CM cube with a weight of 1-1.33Kg. The satellite in this project is 6U, a image of how it looks like is shown on figure \ref{fig::smallsatsat}, it has the dimensions 10cm x 20cm x 30cm.
 
 \begin{figure}[h!]
 	\centering
@@ -173,17 +184,17 @@ The satellite is a cubesat, cubesats are satellites built with the cubesat stand
 
 There is essentially two missions going on on-board the satellite, one mission is called SDR-mission(Software Defined Radio) and the other the HSI-mission(Hyper Spectral Imager). The SDR-mission does research on how to better SDR communication with satellites in the arctic region. The HSI-mission also known as the HYPSO(HYPer-spectral Smallsat for ocean Observation) mission is what this project is about, the mission is going to do ocean observations, more specifically gather hyper spectral data from the surface of the ocean with a hyper spectral imager and send the data to earth. The data is supposed to be used to record and predict algae bloom and is ultimately going to be used as early warning system for salmon farms. Too much algae in the water kills salmon, so if a it could be predicted, the fish can be moved before it hits the farms. It is also plans to use the HSI data in combination with UAV's to better do atmospheric corrections of HSI data.
 
-Figure \ref{fig::flyingsatellite} shows the phases of a flyby for the satellite over the Norwegian sea. The satellite is in sleep mode when it is not in use, then it wakes up, contacts the ground station for recieveing commands, then it captures hyper spectral images of the ocean and connects to a ground station to transfer the data. It may take a few flybys before all the data have been transmitted and different ground stations can be used as a receiving station for data. A UAV flies by the same area as the satellite to capture reference images that can be used to better atmospheric correction algorithms.
+Figure \ref{fig::flyingsatellite} shows the phases of a fly-by for the satellite over the Norwegian sea. The satellite is in sleep mode when it is not in use, then it wakes up, contacts the ground station for receiving of commands, then it captures hyper spectral images of the ocean and connects to a ground station to transfer the data. It may take a few fly-by's before all the data have been transmitted and different ground stations can be used as a receiving station for data. A UAV flies by the same area as the satellite to capture reference images that can be used to better atmospheric correction algorithms.
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.75\textwidth]{images/satellitemanouver.png}
-	\caption{Satellite fly by\cite{ntnuinternal}}
+	\caption{Satellite fly-by\cite{ntnuinternal}}
 	\label{fig::flyingsatellite}
 \end{figure}
 
 
-Figure \ref{fig::satelliteparts} shows how the satellite is supposed to look like inside. The satellite is equipped with star tracker and a RGB camera pointed in the direction of the earth, used to help knowing the orientation of the satellite, while the reaction wheels manouvers the orientation of the satellite. The OPU(On board Processing Unit) are the boards used for processing mission data from the HSI payload, how the satellite platform is connected is explained later in chapter \ref{chap::satplatform}.
+Figure \ref{fig::satelliteparts} shows how the satellite is supposed to look like inside. The satellite is equipped with a star tracker and a RGB camera pointed in the direction of the earth, used to help knowing the orientation of the satellite, while the reaction wheels and magnetorquers maneuvers the orientation of the satellite. The OPU(On board Processing Unit) processes mission data from the HSI payload, how the different components of the satellite platform is connected is explained later in chapter \ref{chap::satplatform}.
 
 \begin{figure}[h!]
 	\centering
@@ -193,11 +204,11 @@ Figure \ref{fig::satelliteparts} shows how the satellite is supposed to look lik
 \end{figure}
 
 
-\subsection{Problem description}
+\section{Problem description}
 Prior to the master thesis there is a smaller project, called a specialization project, this project works as a start on the master thesis work. A short summary of the project is included in this thesis, the whole project report can also be found online \cite{specializationproject}. The problem description for this thesis was defined with the knowledge gained from the specialization project and goes as follows:
 
 {\fontfamily{ptm}\selectfont
-  The task is to set up a iDS camera on a Zynq-7000 SoC for capturing of hyperspectral images. With the goal of capturing 2254 12-bit images at a resolution of 1216x1936 with a framerate of 32fps. Aslo investigate how to implement other previous work into the pipeline.
+  The task is to set up a IDS camera on a Zynq-7000 SoC for capturing of hyperspectral images. With the goal of capturing 2254 12-bit images at a resolution of 1216x1936 with a framerate of 32fps. Aslo investigate how to implement other previous work into the pipeline.
 
 Subtasks for the project in prioritized order:
 
@@ -211,17 +222,23 @@ Subtasks for the project in prioritized order:
 
 }
 %Want to do processing within 70 seconds
-There is also a constraint that the compressed cube must be ready for transfer within 70 seconds after the last frame have been captured.
-\subsection{Structure of the thesis}
+There is also a constraint that the compressed data must be ready for transfer within 70 seconds after the last frame have been captured.
 
-\section{Specialization project}
-In the specialization project the task was to see if it is possible to run a ueye camera on a embedded Linux system on a Zynq-7000 chip. The camera was of type UI-3060CP Rev. 2, it is a USB camera with a Sony IMX174 Cmos monochrome sensor. The goal was to capture 1735 frames at 32 frames per second, where the frames have bit depth of 12, resolution of 1920x1080 and a binning factor of 20. Then store the data in a cube format. 12 bit frames could not be obtained due to the board only has a USB 2.0 interface, to get a higher bit depth USB 3.0 must be used.
+\section{Structure of the thesis}
+This thesis consists of five main chapters. Chapter \ref{chap::specproj} gives a short description of what was done in the specialization project and what was achieved. Chapter \ref{chap::background} explains the theory behind the things that are implemented in the project. Chapter \ref{chap::tests} presents measurements for binning, FPS, resolution and different camera modes, and explains how they are achieved. Chapter \ref{chap::pipeline} provides the design for the image processing pipeline and chapter \ref{chap:analDisc} discusses different aspects of the design, the results obtained, and gives some sugestions for future work and then a conclusion is given.
+
+\chapter{Specialization project}
+\label{chap::specproj}
+In the specialization project the task was to see if it is possible to run a ueye camera on a embedded Linux system on a Zynq-7000 chip. The camera was of type UI-3060CP Rev. 2, it is a USB camera with a Sony IMX174 Cmos monochrome sensor. The goal was to capture 1735 frames at 32 frames per second, where the frames have bit-depth of 12, resolution of 1920x1080 and a binning factor of 20. Then store the data in a cube format. 12-bit frames could not be obtained due to the board only has a USB 2.0 interface, to get a higher bit-depth USB 3.0 must be used.
 
 The camera was tested in software trigger and freerun mode. Timing in software triggering were very unstable so out of these two, freerun mode was by far the best option.
-Two different types of binning was tested; median and mean binning, here mean binning was proven to be more susceptive to noise. Different methods of median and mean binning was experimented with. For the mean binning a solution with using SIMD instruction was the fastest, but for median binning none of the tested methods were fast enough on the system. Three different data cubes was tested, these are BIL, BIP and BSQ, here BIL and BIP cubes was equally fast to create a cube and BSQ the slower one, but when the formats gets stored, BSQ is the faster one and BIL and BIP equally slow.
+Two different types of binning was tested; median and mean binning, here mean binning was proven to be more susceptive to noise. Different methods of median and mean binning was experimented with. For the mean binning a solution with using SIMD instruction was the fastest, but for median binning none of the tested methods were fast enough on the system. For median binning, many different algorithms were tested, but because of too little time, algorithms with SIMD instruction werent tested. Three different data cubes was tested, these are BIL, BIP and BSQ, here BIL and BIP cubes was equally fast to create a cube and BSQ the slower one, but when the formats gets stored, BSQ is the faster one and BIL and BIP equally slow.
 
-\section{Background}
-\subsection{Hyper Spectral Imaging}
+\chapter{Background}
+\label{chap::background}
+This chapter explains the tools and theory used in this thesis, the main things are; The theory and basic principles for hyperspectral imaging with a monochrome sensor, this theory is found in the book \emph{Introduction to remote sensing}\cite{remotesensing}. How to use the camera and how to interface with it, this is explained in more detail in the manual for the camera\cite{ueyemanual}. The satellite platform is explained and the system on chip that is part of the HSI payload, the information on these things are found mainly online at ARM, Xilinx and Nano avionics's web pages. The Linux kernel, drivers and memory in Linux is described, the information about this can be found in the books \emph{Operating Systems Internals and Design Principles}\cite{operatingsystems} and \emph{Linux Device Drivers}\cite{ldd3}. A couple FPGA accelerators developed by previous students in the HYPSO project, have been used in this project and is explained in this chapter, three papers have been written on them. The papers and the CCSDS123 documentation\cite{ccsds123} have been used as a source here, the papers are \emph{An Efficient Real-Time FPGA Implementation of the CCSDS-123 Compression Standard for Hyperspectral Images}\cite{ccsdspaper1}, \emph{A Parallel FPGA Implementation of the CCSDS-123 Compression Algorithm}\cite{ccsdspaper2} and \emph{CubeDMA-Optimizing Three-Dimensional DMA transfers for Hyperspectral Imaging Applications}\cite{cubedmapaper}.
+
+\section{Hyper Spectral Imaging}
 Hyperspectral imaging captures a continuous specter of light and divides them into bands\cite{remotesensing}. To get a monochrome camera to take hyperspectral images, a lens equipped with slits that uses diffraction to spread the wavelengths is used. The wavelengths then gets spread over the sensor in one dimension, therefore pixels will in one dimension represent space and the other dimension represents bands, this is illustrated in figure \ref{fig::pixelsmonochrome}.
 
 \begin{figure}
@@ -295,7 +312,7 @@ A common way to store hyperspectral images is in a cube format. There are three 
 
 BIL stores the pixels from X spatial direction consecutively for each band in each row and the y spatial direction represents the rows. For BIP the y spatial direction also represents the rows, but within the rows, all the bands for one pixel in X spatial direction is placed consecutively, then the same for the next pixel. BSQ is more different than the other two, here all the pixels in X spatial direction from one band is represented in the columns. The Y spatial direction is represented in consecutive rows for one band, then the next band is represented.
 
-\subsection{Satellite platform}
+\section{Satellite platform}
 \label{chap::satplatform}
 Figure \ref{fig::platform} shows how the satellite platform looks like, it is delivered by Nano Avionics and is called M6P(Multi Purpose 6U). All systems and subsystems uses the CSP protocol (Cubesat Space Protocol).
 
@@ -343,11 +360,11 @@ CSP runs on FreeRTOS, POSIX and pthread based operating systems and it is writte
 \label{fig::platform}
 \end{figure}
 
-CSP packets gets packed and sent between the segments or networks with the UHF module. The platform have two CAN busses, where on one bus the payloads are connected and on the other bus the satellite operation systems are connected. PC(Payload Controller) directs CSP packets between the can buses, and buffers mission data from the payloads and sends it to the S-band which in turn sends data to the ground station. The FC(Flight Computer) logs telemetry data and handles attitude determination and control. EPS(Electrical Power System) delivers power to the satellite. The power source is Lithium-Ion batteries that is charged with the solar panels, the batteries has a capacity of 161Wh.
+CSP packets gets packed and sent between the segments with CAN bus or networks with the UHF module. The platform has two CAN busses, where on one bus the payloads are connected and on the other bus the satellite operation systems are connected. PC(Payload Controller) directs CSP packets between the can buses, and buffers mission data from the payloads and sends it to the S-band which in turn sends data to the ground station. The FC(Flight Computer) logs telemetry data and handles attitude determination and control. EPS(Electrical Power System) delivers power to the satellite. The power source is Lithium-Ion batteries that is charged with the solar panels, the batteries has a capacity of 161Wh.
 
-Figure \ref{fig::onboardprocessing} shows the HSI payload, it is a system in chip with a processing system and programmable logic. The red arrows show the data pipeline, here the frames gets captured by the camera, and transmitted over ethernet network to the processing system, which binns, stores and sends data with a DMA accellerator called CubeDMA to the programmable logic. In the programmable logic super resolution, target detection and a compression algorithm is applied. The data is sent back to memory and forwared over CAN bus with the CSP protocol.
+Figure \ref{fig::onboardprocessing} shows the HSI payload, it is a system on chip with a processing system and programmable logic. The red arrows show the data pipeline, here the frames gets captured by the camera, and transmitted over ethernet network to the processing system, which binns, stores and sends data with a DMA accellerator called CubeDMA to the programmable logic. In the programmable logic super resolution, target detection and a compression algorithm is applied. The data is sent back to memory and forwared over CAN(Controller Area Network) bus with the CSP protocol.
 
-The gray boxes shows what areas this thesis is focused on. In the processing system, a Embedded Linux OS is built with Petalinux tools, this is set up to handle memory for DMA. The camera communication data processing and CubeDMA communication is handled with C++ programs, that is set up to run as CSP services. The lossless compression and CubeDMA accellerator is implemented and the bitstream is loaded from the OS's boot image.
+The gray boxes shows what areas this thesis is focused on. In the processing system, a Embedded Linux OS is built with Petalinux tools, this is set up to handle memory for DMA. The camera communication, data processing and CubeDMA communication is handled with applications written in C++, that is set up to run as CSP services. The lossless compression and CubeDMA implementations is uploaded from the OS's boot image to the FPGA.
 
 \begin{figure}
 \includegraphics[width=\textwidth]{images/onboardprocessing.png}
@@ -355,11 +372,11 @@ The gray boxes shows what areas this thesis is focused on. In the processing sys
 \label{fig::onboardprocessing}
 \end{figure}
 
-\subsection{Ueye camera}
+\section{Ueye camera}
 \label{chap::ueye}
-iDS Ueye cameras come in three different series; U3, GV and UI. U3 use USB connections and GV use Gigabit Ethernet connections\cite{propids}. U3 and GV use the standards USB3 Vision and GigE Vision as communication protocol, both of these are closed protocols developed by the Automated Imaging Association(AIA), which is a trade group for the machine vision industry\cite{visionstd}. The UI series comes with either a USB connection or a GigE connection. These cameras use a proprietary protocol developed by IDS. To communicate with these cameras IDS provides a closed source driver that uses a C interface for communication and can be used for both USB and GigE.
+IDS Ueye cameras come in three different series; U3, GV and UI. U3 use USB connections and GV use Gigabit Ethernet connections\cite{propids}. U3 and GV use the standards USB3 Vision and GigE Vision as communication protocol, both of these are closed protocols developed by the Automated Imaging Association(AIA), which is a trade group for the machine vision industry\cite{visionstd}. The UI series comes with either a USB connection or a GigE connection. These cameras use a proprietary protocol developed by IDS. To communicate with these cameras IDS provides a closed source driver that uses a C interface for communication and can be used for both USB and GigE.
 
-The camera chosen to be used on the satellite is a UI-5260CP Rev. 2. This is a GigE camera, it has a Sony IMX249 CMOS monochrome sensor, maximun 47.0 fps and a 1936x1216 resolution. It has integrated FPGA that can be used to do various pre processing, like cropping out a area of interest(AOI), subsampling and gain boost\cite{ueyemanual}.
+The camera chosen to be used on the satellite is a UI-5260CP Rev. 2 camera. This is a GigE camera, it has a Sony IMX249 CMOS monochrome sensor, maximun 47.0 fps and a 1936x1216 resolution. It has integrated FPGA that can be used to do various pre processing, like cropping out a area of interest(AOI), subsampling and gain boost\cite{ueyemanual}.
 
 To capture a image, the camera can run in different operating modes; hardware trigger mode, software trigger mode or freerun mode. In freerun mode, the framerate and numbers of images to capture gets specified first, then a command from software gets sent to start a image capture sequence. In SW- and HW trigger mode one image gets captured when the camera receives a signal from either SW, if it is in SW-trigger mode, or HW if it is in HW-trigger mode. When in trigger mode, the camera goes into standby after it has captured a image to wait for the next trigger signal. In standby the image sensor is switched off. Figure \ref{fig:triggerHW} and \ref{fig:freerun} shows a timing diagram of the operating modes.
 
@@ -397,7 +414,7 @@ The camera has a 128MB image memory, this memory is used by the camera as a buff
 \end{tabular}
 \end{table}
 
-The driver comes in versions for Windows, Linux and Embedded Linux. It has three different ways of capturing images; bitmap mode, direct3D mode and openGL mode. In bitmap mode, the images get written to a specified place in memory, then they can be processed or fetched from there. In direct3D and openGL mode, the images get written to GPU memory, the GPU must support either direct3D or openGL to use any of these modes. uEye cameras can capture images with bit depths of 8, 10 or 12. The driver only allows bit depths of 8 to be transferred over USB2.0 connections, but allows 8, 10 or 12 to be transferred over USB3.0 and GigE connections.
+The driver comes in versions for Windows, Linux and Embedded Linux. It has three different ways of capturing images; bitmap mode, direct3D mode and openGL mode. In bitmap mode, the images get written to a specified place in memory, then they can be processed or fetched from there. In direct3D and openGL mode, the images get written to GPU memory, the GPU must support either direct3D or openGL to use any of these modes. uEye cameras can capture images with bit-depths of 8, 10 or 12. The driver only allows bit-depths of 8 to be transferred over USB2.0 connections, but allows 8, 10 or 12 to be transferred over USB3.0 and GigE connections.
 
 Figure \ref{figure:camdir} shows how the sensor is oriented in relation to the direction of movement and in which order the pixels are stored in memory. Frames are stored row by row from the sensor, this makes the raw data stored in memory be in BIP order.
 
@@ -434,7 +451,7 @@ Figure \ref{figure:camdir} shows how the sensor is oriented in relation to the d
 
 \end{figure}
 
-To use the c interface, the camera has to be initialized first with the \textsf{is\_InitCamera} function shown below. The arguments to the function is a pointer to a camera handle, this is unique for every camera connected, and a pointer to the window used by Direct3D, if Direct3D is not used, this argument is NULL. To exit the camera, only the camera pointer is needed.
+To use the C interface, the camera has to be initialized first with the \textsf{is\_InitCamera} function shown below. The arguments to the function is a pointer to a camera handle, this is unique for every camera connected, and a pointer to the window used by Direct3D, if Direct3D is not used this argument is NULL. To exit the camera, only the camera pointer is needed.
 
 \begin{tcolorbox}[coltitle=black, colframe=gray!50, title={INT \textsf{is\_InitCamera} (HIDS* \textbf{phf}, HWND \textbf{hWnd})}]
 
@@ -539,8 +556,63 @@ The driver keeps a buffer of image locations, this buffer is a ringbuffer that i
 
 
 
-\subsection{Zynq7000}
-Zynq 7000 is a family of chips made by Xilinx, figure \ref{fig::soc} shows architecture of the chip. The chip consists two main parts, the processing system(PS) and the programmable logic(PL). The programmable logic can be either Artix 7 or Kintex 7 PL, of varying sizes.
+\section{Zynq7000}
+% Zynq 7000 is a family of chips made by Xilinx, figure \ref{fig::soc} shows the architecture of the chip. The chip consists two main parts, the processing system(PS) and the programmable logic(PL). The programmable logic can be either Artix 7 or Kintex 7 PL, of varying sizes.
+
+% \begin{figure}[h!]
+% 	\centering
+% 	\includegraphics[width=.95\textwidth]{images/zynq-mp-core-dual.png}
+% 	\caption{Zynq-7000\cite{zynq7000doc}}
+% 	\label{fig::soc}
+% \end{figure}
+
+% The chip is going to be used with a System On Module(SOM) called Picozed but for development a Zedboard is used\cite{zedboard}\cite{zynq700}, the boards are shown on figure \ref{fig::som}. Both boards has Ethernet, USB 2.0 and JTAG connections, and SD card slots. They have DDR 3 memory and QSPI flash, here the Zedboard has 512 MB DDR3 256 MB QSPI, while the Picozed has 1GB DDR3 and 128MB QSPI. The Picozed also has a 4GB eMMC memory.
+
+% \begin{figure}[!h]
+%      \centering
+%      \begin{subfigure}[b]{0.49\textwidth}
+% 	  \includegraphics[width=\textwidth]{images/Zedboard.png}
+%       \caption{Zedboard\cite{avnetzed}}
+%       \label{subfig-1:zed}
+%      \end{subfigure}
+%      \hfill
+%   \begin{subfigure}[b]{0.49\textwidth}
+
+% 	  \includegraphics[width=\textwidth]{images/Picozed.png}
+%       \caption{Picozed\cite{avnetzed}}
+%       \label{subfig-2:pico}
+%      \end{subfigure}
+%      \caption{Boards}
+%      \label{fig::som}
+%   \end{figure}
+
+
+% The processing system is divided into four modules; Application processor unit (APU), Memory interfaces, I/O peripherals (IOP) and Interconnects. There are controllers for many different memory interfaces and static memory. There are IOP's for UART, I2C, USB 2.0, GPIO, GigE and CAN. The interconnects are internal interconnects in the PS and between PS and PL, the architecture for this is a AMBA bus.
+
+In space a board with the Zynq-7000 chip called Picozed is going to be used, but
+during development a board with the same chip, called Zedboard have mostly been used. This is because the smallsat lab only have access to one Picozed board, that has to be shared among all the members, but there are many zedboards available, figure \ref{fig::som} show how the two boards look like.
+
+\begin{figure}[!h]
+     \centering
+     \begin{subfigure}[b]{0.49\textwidth}
+	  \includegraphics[width=\textwidth]{images/Zedboard.png}
+      \caption{Zedboard\cite{avnetzed}}
+      \label{subfig-1:zed}
+     \end{subfigure}
+     \hfill
+  \begin{subfigure}[b]{0.49\textwidth}
+
+	  \includegraphics[width=\textwidth]{images/Picozed.png}
+      \caption{Picozed\cite{avnetzed}}
+      \label{subfig-2:pico}
+     \end{subfigure}
+     \caption{Boards}
+     \label{fig::som}
+  \end{figure}
+
+Both boards has Ethernet, USB 2.0 and JTAG connections, and SD card slots. They have DDR 3 memory and QSPI flash, here the Zedboard has 512 MB DDR3 256 MB QSPI, while the Picozed has 1GB DDR3 and 128MB QSPI. The Picozed also has a 4GB eMMC memory\cite{zedboard}\cite{zynq700}.
+
+The Zynq-7000 chip is a family of SoCs(System on Chips) that has a Processing system(PS) and a Programmable Logic(PL) that come in different sizes and with different features. The chips available for the zedboard and Picozed have a CPU frequency of 667MHz with programmable logic of differrent sizes\cite{zynq700}. Figure \ref{fig::soc} shows how the architecture of the chip looks like.
 
 \begin{figure}[h!]
 	\centering
@@ -549,31 +621,9 @@ Zynq 7000 is a family of chips made by Xilinx, figure \ref{fig::soc} shows archi
 	\label{fig::soc}
 \end{figure}
 
-The processing system is divided into four modules; Application processor unit (APU), Memory interfaces, I/O peripherals (IOP) and Interconnects. There are controllers for many different memory interfaces and static memory. There are IOP's for UART, I2C, USB 2.0, GPIO, GigE and CAN. The interconnects are internal interconnects in the PS and between PS and PL, the architecture for this is a AMBA bus.
+\subsection{PS}
 
-The chip is going to be used with a System On Module(SOM) called Picozed but for development a Zedboard is used\cite{zedboard}\cite{zynq700}, the boards are shown on figure \ref{fig::som}. Both boards has Ethernet, USB 2.0 and JTAG connections, and SD card slots. They have DDR 3 memory and QSPI flash, here the Zedboard has 512 MB DDR3 256 MB QSPI, while the Picozed has 1GB DDR3 and 128MB QSPI. The Picozed also has a 4GB eMMC memory.
-
-\begin{figure}[!h]
-     \centering
-     \begin{subfigure}[b]{0.49\textwidth}
-	  \includegraphics[width=\textwidth]{images/Zedboard.png}
-       \caption{Zedboard\cite{avnetzed}}
-       \label{subfig-1:zed}
-     \end{subfigure}
-     \hfill
-   \begin{subfigure}[b]{0.49\textwidth}
-
-	  \includegraphics[width=\textwidth]{images/Picozed.png}
-       \caption{Picozed\cite{avnetzed}}
-       \label{subfig-2:pico}
-     \end{subfigure}
-     \caption{Boards}
-     \label{fig::som}
-   \end{figure}
-
-\subsubsection{PS}
-
-The APU consists of a ARM Cortex-A9 processor, this uses Armv7 architecure and comes in either single core or dual core, in this project, the dual core is used.  It has 32KB instruction and 32 KB data L1 caches and 512 KB of shareable L2 cache with a snoop controller. It has a partially out-of-order pipeline, DMA controller, FPU unit and a SIMD co-processor.
+There are many different I/O peripherals, memory interfaces and a APU(Application Processing Unit) in the processing system. The APU consists of a ARM Cortex-A9 processor, this uses Armv7 architecure and comes in either single core or dual core, in this project, the dual core is used.  It has 32KB instruction and 32 KB data L1 caches and 512 KB of shareable L2 cache with a snoop controller. It has a partially out-of-order pipeline, DMA controller, FPU unit and a SIMD co-processor.
 
 \subsubsection*{NEON}
 The SIMD processor uses NEON architecture, which is a architecture developed by ARM. SIMD processors perform the same instructions on multiple data simultaneously. To do this the data is placed contiguously in registers, the data fields in the registers are referred to as lanes in NEON\cite{neonguide}. The operations are performed on two registers in corresponding lanes, figure \ref{fig::simdex} shows how a SIMD add operation is performed on a four lane vector.
@@ -585,9 +635,9 @@ The SIMD processor uses NEON architecture, which is a architecture developed by 
 	\label{fig::simdex}
 \end{figure}
 
-This architecture has sixteen 128 bit vectors, and the operations that are supported for integer operations are; 16x8-bit, 8x16-bit, 4x32-bit, 2x64-bit, and for floating point operations; 8x16-bit, 4x32-bit, 2x64-bit. To use the NEON architecture, assembly code can be written or compiler intrinsics can be used, these intrinsics can be either wrappers for single assembly instructions or multiple assembly instructions. They are available for Arm Compilers, gcc and LLVM compilers\cite{armcortex}\cite{armneon}.
+This architecture has sixteen 128-bit vectors, and the operations that are supported for integer operations are; 16x8-bit, 8x16-bit, 4x32-bit, 2x64-bit, and for floating point operations; 8x16-bit, 4x32-bit, 2x64-bit. To use the NEON architecture, assembly code can be written or compiler intrinsics can be used, these intrinsics can be either wrappers for single assembly instructions or multiple assembly instructions. They are available for Arm Compilers, gcc and LLVM compilers\cite{armcortex}\cite{armneon}.
 
-Intrinsics exist for addition, multiplication, loading and unloading of registers. Comparison operations, where two vectors get compared lanewise and min or max values gets placed in a destination register. There exists instructions for operations where lanes get rearranged within a register or between registers, these are called shuffle instructions. Three of them is called zip-, transpose- and reverse operations.
+Intrinsics exist for addition, multiplication, loading and unloading of registers. Comparison operations, where two vectors get compared lanewise and min or max values gets placed in a destination register. It exists instructions for operations where lanes get rearranged within a register or between registers, these are called shuffle instructions. Three of them is called zip-, transpose- and reverse operations.
 \cite{neonshuffle}
 
 Figure \ref{fig::reverseop} shows how a reverse operation in NEON can look like. N-bit lanes can be reversed in M-bit sub elements within a vector. As shown in the example, \textit{VREV16.8 d0 d1}, reverses each 8-bit pair in the 4 sub elements of 16-bit within the vector, and \textit{VREV32.8 d0 d1} reverses four 8-bit elements within 32-bit sub elements.
@@ -607,7 +657,7 @@ Figure \ref{fig::transposeop} shows the transpose operation. This operation swit
 	\label{fig::transposeop}
 \end{figure}
 
-Figure \ref{fig::zipop} shows a zip operation. This operation interleaves the lanes of two source vectors into the same source vectors. Operations for un zipping also exists.
+Figure \ref{fig::zipop} shows a zip operation. This operation interleaves the lanes of two source vectors into the same source vectors. Operations for un-zipping also exists.
 
 \begin{figure}[h!]
 	\centering
@@ -616,7 +666,7 @@ Figure \ref{fig::zipop} shows a zip operation. This operation interleaves the la
 	\label{fig::zipop}
 \end{figure}
 
-\subsubsection{Booting}
+\subsection{Booting}
 Zynq has on chip memory(OCM), that is used for booting, the memory is divided into two parts; ROM and RAM, both have 256KB each. Figure \ref{fig::bootorder} shows the different stages of the booting process.
 
 \begin{figure}[h!]
@@ -645,15 +695,15 @@ Figure \ref{fig::bootfiles} shows the files involved in the boot process. FSBL, 
 
 
 
-\subsubsection{Communication}
+\subsection{Communication}
 \subsubsection*{CAN}
-In CAN(Controller Area Network) networks there is no bus master, the data gets sent in many short messages and is broadcasted to the entire network\cite{canbus}. Bus access is event driven and non destructive, if one node has access to the bus and another node requests the bus, the requesting node must wait for the currently accessing node. Arbitration is done with priority and randomly for nodes with the same priority. The physical layer is two wires, and the data rate is expected to be 416Kbps. The bus also has the ability to self diagnose and repair data errors.
+In CAN(Controller Area Network) networks there is no bus master, the data gets sent in many short messages and is broadcasted to the entire network\cite{canbus}. Bus access is event driven and non destructive, if one node has access to the bus and another node requests the bus, the requesting node must wait for the currently accessing node. Arbitration is done with priority and randomly for nodes with the same priority. The physical layer consists of two wires, and the data rate is expected to be 416Kbps for this satellite. The bus also has the ability to self diagnose and repair data errors.
 \subsubsection*{GigE}
 The Gigabit Ethernet connection is a 1000BASE-T connection, this means the data rate is 1000Mbps and that the physical connection is four pairs of twisted wires\cite{ueyemanual}. The communication protocol used by the camera is UDP, which is a fast but unreliable compared to other protocols used over ethernet connections. UDP sends data in packets with the IP address of the destination in the header\cite{udp} and no form of handshaking, this way, if packets gets dropped, the sender will not know and data errors may occur, this is why it's considered more unreliable\cite{udp}.
 \subsubsection*{AMBA}
 The AMBA bus uses the AXI(Advanced eXstensible Interface) bus standard, this is developed by ARM. In this standard two nodes can occupy the bus at the same time, the initiator of the communication is the master and the other node is the slave. The data width can be either 32-bit or 64-bit.
 
-\subsubsection{Embedded Linux}
+\subsection{Embedded Linux}
 
 In Linux, the OS is called the Kernel\cite{operatingsystems}. Memory is divided into user space and kernel space, where user space is where the user applications is running and kernel space is where the kernel is running. Kernel space usually has full access to hardware and system resources. While user space applications has limited privileges, but has access to some of the kernels functions through system calls.
 
@@ -666,11 +716,11 @@ The Linux kernel is modular monolithic. Modular meaning that it consists of a st
 	\label{fig::lunuxkern}
 \end{figure}
 
-\subsubsection{Memory}
+\subsection{Memory}
 
-Figure \ref{fig::memhir} shows how memory in modern computer systems is arranged. The design is hierarchical, where the fastest memory is closest to the CPU, the memory closer to the CPU is also smaller in size. Both L1 and L2 cache are usually built into the CPU chip, but L1 is smaller and closest to the CPU. The main memory is used by applications that are running and data that is manipulated in some way or data that has to be available to other processes is placed here. Main memory is volatile and also known as RAM, for Random Access Memory. At the bottom of the hierarchy is storage, this is the biggest memory in size but also the slowest, this memory is not volatile, so data that are stored here is permanently stored. Storage is often a magnetic disk or flash based memory.
+Figure \ref{fig::memhir} shows how memory in modern computer systems is arranged. The design is hierarchical, where the fastest memory is closest to the CPU, the memory closer to the CPU is also smaller in size. Both L1 and L2 cache are usually built into the CPU chip, but L1 is smaller and closest to the CPU. Main memory are also known as RAM(Random Access Memory) and data that has to be manipulated in some way and applications that are running on the CPU are usually kept here. L1, L2 and RAM are all volatile memory. At the bottom of the hierarchy is storage, this is the biggest memory in size but also the slowest, this memory is not volatile, so data that are kept here is permanently stored. Storage is often a magnetic disk or flash based memory.
 
-The reason for having small fast memory close to the CPU is because of the principle of temporal and spatial locality. Temporal locality is the principle that data that is accessed is likely to be accessed again in the near future. Spatial locality is the principle that when some data is accessed, the data next to it is also likely to be accessed.
+Smaller memories are usually faster and memory closer to the CPU is accessed faster. The reason why having small fast memory close to the CPU is because of the principle of temporal and spatial locality. Temporal locality is the principle that data that is accessed is likely to be accessed again in the near future, so keeping it close to the CPU will make it faster to access it again when it is needed.  Spatial locality is the principle that when some data is accessed, the data next to it is also likely to be accessed, so having data that is close to the current working data close to the CPU will make it faster to access when it is needed.
 
  \begin{figure}[h!]
 	\centering
@@ -679,6 +729,7 @@ The reason for having small fast memory close to the CPU is because of the princ
 	\label{fig::memhir}
 \end{figure}
 
+\subsubsection*{Memory partitioning}
 Main memory can be partitioned with fixed partition sizes or variable partition sizes. With fixed partitions, memory is divided up into fixed length partitions known as a frames, a program is then assigned one ore more frames. With variable partition, memory is divided into segments of different sizes, the segments can either be pre defined or dynamically partitioned during runtime. Figure \ref{fig::partitt} shows how a memory can be partitioned with either fixed or variable length partitioning.
 
 \begin{figure}
@@ -711,7 +762,7 @@ A page table is used to keep track of what frame each page occupies, pages can t
 
 Fragmentation is when there are unused spaces in memory which it is impossible to fit a process in\cite{operatingsystems}. When the segment scheme is used, there is a risk of having a lot of unused space because new segments won't fit between the segments already in memory, this is called external fragmentation. When the paging scheme is used there is a risk of a lot of unused space in the last page at the end of each process, this is called internal fragmentation.
 
-A page address is divided up into a page number and a offset value, figure \ref{fig::logicaddress} shows a example of this for a logical 16-bit address. Logical addresses is a memory references that doesn't reference directly to physical addresses. The first 6 bits of the address represents the page, this is used by a page table to find the frame number in physical memory. The last ten bits is the offset to the data within the page/frame.
+A page address is divided up into a page number and a offset value, figure \ref{fig::logicaddress} shows a example of this for a logical 16-bit address. Logical addresses is a memory references that doesn't reference directly to physical addresses. The first 6-bits of the address represents the page, this is used by a page table to find the frame number in physical memory. The last ten bits is the offset to the data within the page/frame.
 
 \begin{figure}[h!]
 	\centering
@@ -722,6 +773,7 @@ A page address is divided up into a page number and a offset value, figure \ref{
 
 Memory management is a collaboration between HW and OS. The page table of processes are kept in memory, this results in that every memory access includes two memory accesses, one for translation from logical address to physical address and one for accessing the actual physical memory. To help prevent this a HW unit called a Translation Lookaside Buffer(TLB) is used, the TLB caches the page tables based on some caching algorithm, and if the logical address is present in the TLB, the translation to physical memory is done directly there so that only one memory access is necessary.
 
+\subsubsection*{Virtual memory}
 A technique used in many modern systems is virtual memory. This is used to make it look like memory is larger than it really is. This has the advantage of making it so that lots of different data and different processes can be maintained in memory at the same time and keep processes larger than physical memory in memory.
 
 For this to be possible all processes is assigned their own virtual address space of logical addresses. The pages of a process can be in either memory or storage, OS places pages in either memory or storage as it sees fit, usually pages that is not needed right now is placed in storage, this is called swapping. Each process has it's own page table. Figure \ref{fig::pagentry} shows how a pagetable entry might look like for virtual memory. A P-bit tells if the page is present in memory or not, a M-bit tells if the page has been modified since the last time it was loaded from storage and the other control bits can be stuff like protection and sharing.
@@ -742,7 +794,7 @@ Different page tables might be different sizes, so a pointer to the page table i
 	\label{fig::virtophys}
 \end{figure}
 
-\subsubsection{Memory in Linux}
+\subsection{Memory in Linux}
 Because page tables might become big, it is not favorable to keep all of the table in memory. To solve this, page tables can also be stored in virtual memory. This leads to a hierarchical page table system. For Linux a three level page table structure is used, this is shown in figure \ref{fig::linpagetable}.
 
 \begin{figure}[h!]
@@ -754,17 +806,17 @@ Because page tables might become big, it is not favorable to keep all of the tab
 
 The first level is the page directory, this can be found at a address stored in the page table pointer. The page directory points to a page in the middle directory, which in turn points to the actual page table, that points to a page. The virtual address is divided into three directory offset values which is used in their respective directories, and a offset for the actual page. The size of the page directory is one page while the sizes of middle directory and page table can be multiple pages long. If the hardware does not support three level page tables, the middle directory is set to be only one entry, which eliminates this level.
 
-There are three types of addresses associated with memory in Linux, those are; User virtual addresses, Kernel virtual addresses and Kernel logical addresses. Each process has its own virtual address space which also requires their own virtual addresses, these addresses can be 32 or 64 bit long. Kernel virtual addresses can also be 32 or 64 bit long, they can be either regular virtual addresses or kernel logical addresses. The logical addresses have a one to one mapping to physical memory addresses, where the page number of the virtual address corresponds to the frame number of the physical address, and the offset in the page corresponds to the offset in the frame. A Kernel virtual address which is not a logical address can be mapped anywhere in memory.
+There are three types of addresses associated with memory in Linux, those are; User virtual addresses, Kernel virtual addresses and Kernel logical addresses. Each process has its own virtual address space which also requires their own virtual addresses, these addresses can be 32- or 64-bit long. Kernel virtual addresses can also be 32- or 64-bit long, they can be either regular virtual addresses or kernel logical addresses. The logical addresses have a one to one mapping to physical memory addresses, where the page number of the virtual address corresponds to the frame number of the physical address, and the offset in the page corresponds to the offset in the frame. A Kernel virtual address which is not a logical address can be mapped anywhere in memory.
 
-\subsubsection{Kernel module}
-A kernel module can either be a char driver, block driver or network driver. Char drivers are accessible through a device file in the file system and is read or written to char by char, like a stream of data. Block drivers are mounted as a file system and is read or written to with blocks of data. Network drivers are similar to block devices, but differ in that they can send and receive data asynchronously on the network. In this project a network driver has been used, because it provides the functionality needed for the design, no big blocks of data has to be sent between kernel and user space, and no access to the network is needed.
+\subsection{Kernel module}
+A kernel module can either be a char driver, block driver or network driver. Char drivers are accessible through a device file in the file system and is read or written to char by char(one byte at the time), like a stream of data. Block drivers are mounted as a file system and is read or written to with blocks of data. Network drivers are similar to block devices, but differ in that they can send and receive data asynchronously on the network. In this project a char driver has been used, because it provides the functionality needed for the design, no big blocks of data has to be sent between kernel and user space, and no access to the network is needed.
 
 Associated with kernel modules, are something called major and minor numbers. The purpose of these numbers are to identify the driver and the device. In some systems, only major numbers are used, in these systems the major number tells the kernel exactly what driver and device file it refers to(multiple devices can be created from one driver). In other systems the major number refers to what driver it is and the minor number refers to what deivce it is. In this system only major numbers is used. The major number can be given to the driver from the kernel or created by the driver, this has to be registered in the kernel.
 
 Communication between the user space application and the kernel module happens through system calls from user space. Char devices requires a few structures to work with the kernel, the most important are; file operations struct, file struct, cdev struct and inode struct.
 
 \begin{itemize}
-  \item \textbf{File operations structure.} This structure contain pointers to the functions to execute when user space uses system calls for this device, listing \ref{lst::fops} shows and example for one of these. When the \textit{open} system call is used on this device, the kernel knows what function to execute, because it has a pointer to the \textit{dev\_open} function.
+  \item \textbf{File operations structure.} This structure contain pointers to the functions to execute when user space uses system calls for this device, listing \ref{lst::fops} shows an example for one of these. When the \textit{open} system call is used on this device, the kernel knows what function to execute, because it has a pointer to the \textit{dev\_open} function.
 
 
  \begin{lstlisting}[language=C++, caption={File operations}, label={lst::fops}, numbers=none]
@@ -783,7 +835,7 @@ The cdev struct is the kernels way of representing char devices. This structure 
 
   \item \textbf{File structure.} This structure contains information about the device that can be used by the device and kernel. This structure is created by the OS when the device is opened and is passed to all functions used in the driver. This structure has many fields, perhaps the most important ones are show in listing \ref{lst::file}. The \textit{mode\_t} field has information on if the device is readable or writable, the file operation struct described earlier, and the private data field. The private data field can be set to point to anything, this can be helpful for many things within the driver.
 
-   \begin{lstlisting}[language=C++, caption={File operations}, label={lst::fops}, numbers=none]
+   \begin{lstlisting}[language=C++, caption={File structure}, label={lst::file}, numbers=none]
 struct file file_str = {
     .
     .
@@ -799,9 +851,9 @@ struct file file_str = {
 \end{itemize}
 
 For any further information of the structure of drivers, Linux kernel or Linux memory more information can be found in the Linux Device Drivers book, free online \cite{ldd3}.
-\subsection{Accelerators}
+\section{Accelerators}
 
-\subsubsection{CubeDMA}
+\subsection{CubeDMA}
 
 The cubeDMA core can read BSQ and BIP ordered cubes from memory. It is designed to be able to read bit-depths that aren't byte multiples and stored without padding. It is possible to read a cube block wise, so that the cube is divided into blocks and the blocks is streamed in it's entirety before the next block, the size of the blocks must be powers of two.
 
@@ -825,7 +877,7 @@ The cube(or block) is read from left to right, Figure \ref{fig:streamingorder} s
      \label{fig:streamingorder}
    \end{figure}
 
-On figure \ref{fig:cubedmacore} is a block diagram of the cubeDMA core. It consists of two parts; memory to stream channel(MM2S) and a stream to memory channel(S2MM). Both of does as the names sugest, MM2S accesses memory and streams the data into the FPGA, and S2MM streams data from the FPGA and stores it in memory.
+On figure \ref{fig:cubedmacore} is a block diagram of the cubeDMA core. It consists of two parts; memory to stream channel(MM2S) and a stream to memory channel(S2MM). Both of them does as the names sugest, MM2S accesses memory and streams the data into the FPGA, and S2MM streams data from the FPGA and stores it in memory.
 
 
 \begin{figure}[h!]
@@ -835,7 +887,7 @@ On figure \ref{fig:cubedmacore} is a block diagram of the cubeDMA core. It consi
     \label{fig:cubedmacore}
 \end{figure}
 
-The MM2S channel consists of three parts; The datamover/tinymover, unpacker and controller. Datamover/tinymover is responsible for reading directly from memory over the bus. The datamover is a Xilinx IP and it is used for BIP transfers in this design, the tinymover is designed by the creator of the cubeDMA core and is used for BSQ transfers. The datamover or tinymover sends the lines read from memory to the unpacker. The unpacker shifts the data into alignment and correct word sizes. Figure \ref{fig:unpacker} shows how a 64 bit word of unaligned 12-bit data from memory is shifted and placed into words containing four 12-bit samples. The controller manages the datamover and unpacker during transfer and also outputs a control stream that an accelerator might need. The information in the control stream is; whether a sample is the last pixel in a block, if a sample are in the last column and if a sample is in the last row.
+The MM2S channel consists of three parts; The datamover/tinymover, unpacker and controller. Datamover/tinymover is responsible for reading directly from memory over the bus. The datamover is a Xilinx IP and it is used for BIP transfers in this design, the tinymover is designed by the creator of the cubeDMA core and is used for BSQ transfers. The datamover or tinymover sends the lines read from memory to the unpacker. The unpacker shifts the data into alignment and correct word sizes. Figure \ref{fig:unpacker} shows how a 64-bit word of unaligned 12-bit data from memory is shifted and placed into words containing four 12-bit samples. The controller manages the datamover and unpacker during transfer and also outputs a control stream that an accelerator might need. The information in the control stream is; whether a sample is the last pixel in a block, if a sample are in the last column and if a sample is in the last row.
 
 \begin{figure}[h!]
     \centering
@@ -938,7 +990,7 @@ C\_TINYMOVER         & Use of tinymover or datamover               \\ \hline
 \end{tabular}
 \end{table}
 
-\subsubsection{Compression}
+\subsection{Compression}
 
 CCSDS 123.0-B-1 is a image compression algorithm developed by the Consultative Committee for Space Data Systems(CCSDS), this is a committee consisting of many member agencies that meet to discuss common data system problems. For extensive information on algorithm, a document describing the standard is available for anyone \cite{ccsds123}. CCSDS 123 is lossless compression algorithm that is very well suited for hyperspectral images, due to the cube like nature of the data. The compressed image is of varying length depending on the input samples.The compression is done in two stages, predictor stage and encoder stage, shown in figure \ref{fig:blockcompr}
 
@@ -949,11 +1001,11 @@ CCSDS 123.0-B-1 is a image compression algorithm developed by the Consultative C
     \label{fig:blockcompr}
 \end{figure}
 
-The input samples to the predictor is a fixed size of D bits, where D is $2\leq D \leq 16$. The predictor stage uses adaptive linear prediction. This means that it uses the sample neighborhood in x, y spatial direction and z spectral direction to predict the value of a sample. The output from this stage is the difference in the predicted value of a sample and the actual value.
+The input samples to the predictor is a fixed size of D-bits, where D is $2\leq D \leq 16$. The predictor stage uses adaptive linear prediction. This means that it uses the sample neighborhood in x, y spatial direction and z spectral direction to predict the value of a sample. The output from this stage is the difference in the predicted value of a sample and the actual value.
 
 The output of the predictor is the input of the encoder. The encoder can either be sample adaptive entropy or block adaptive entropy encoder. Sample adaptive entropy coding uses statistics to assign a variable length code word to each sample. Block adaptive entropy coding divides the samples into blocks, and use independently and adeptly selected encoding methods for each block. This project uses the sample adaptive entropy encoder. The output is a image with a header and a body, where the body are the encoded mapped prediction residuals, and the header consists of image metadata, predictor metadata and entropy coder metadata.
 
-\paragraph{Predictor}
+\subsubsection*{Predictor}
 
 The predictor uses samples from previous bands and the neighborhood within the same band to make the predictions, a typical prediction neighborhood is shown in figure \ref{fig:predictionneigh} Calculation of local sum, central local difference and directional local difference uses neighborhoods like these. The local sum, central local difference and directional local difference is then used to make the predicton calculations.
 
@@ -964,10 +1016,10 @@ The predictor uses samples from previous bands and the neighborhood within the s
     \label{fig:predictionneigh}
 \end{figure}
 
-\paragraph{Local sum}
+\subsubsection*{Local sum}
 The local sum is a weighted sum of neighboring samples in the x and y direction within the same band. It can either be a column- or neighbor-oriented local sum, this defines how the neighborhood of samples look like. The differences between the local sum and neighborhood of pixels is called central local differences and directional local differences and are put into a local difference vector, that also includes P previous local differences from previous bands. The local difference vector is used to produce a dot product with a corresponding weight vector.
 
-\paragraph{Calculating weights}
+\subsubsection*{Calculating weights}
 \label{chap:weight}
 
 For each spectral band the initial weight vector components is assigned like in equation \ref{eq:initweight}. $\Omega$ is a user defined parameter in the range $4\leq\Omega\leq19$.
@@ -999,7 +1051,7 @@ Here $e_{z}(t)$, is defined in equation \ref{eq:avvik} and $\rho(t)$ is defined 
 
 $v_{min}$, $v_{max}$ and $t_{inc}$ are user defined parameters, with the constraints $-6\leq v_{min}\leq v_{max} \leq 9$ and $2^{4} \leq t_{inc} \leq 2^{11}$, where $t_{inc}$ is a power of two.
 
-\paragraph{Prediction values}
+\subsubsection*{Prediction values}
 The product of the weight vector and local difference vector gives the central local difference $\hat{d}_{z}(t)$. Here R is a user defined parameter; $max\{32, D+\Omega+2\}\leq R \leq 64$. The last thing that is needed before the output of the predictor can be calculated is the scaled predicted sample value, this is shown in equation \ref{eq:scaledpredict}.
 
 \begin{equation}
@@ -1011,8 +1063,8 @@ The product of the weight vector and local difference vector gives the central l
 \label{eq:scaledpredict}
 \end{equation}
 
-The predicted sample value is half of the scaled predicted sample value, this is used to calculate the difference between the predicted sample calue and the actual value. The difference values is used as a input for a algorithm that calculates the mapped prediction residuals $\delta_{z}(t)$, which is the output from the predictor stage.
-\paragraph{Encoder}
+The predicted sample value is half of the scaled predicted sample value, this is used to calculate the difference between the predicted sample value and the actual value. The difference values is used as a input for a algorithm that calculates the mapped prediction residuals $\delta_{z}(t)$, which is the output from the predictor stage.
+\subsubsection*{Encoder}
 
 With the sample adaptive entropy encoding, the mapped prediction residuals is assigned a variable length binary code word. The code word is based on adaptive code selection statistics, this consists of a accumulator $\Sigma_{z}(t)$ and a counter $\Gamma_{z}(t)$.
 
@@ -1110,7 +1162,7 @@ $\gamma_{*}$                    & Rescaling counter size                        
 
 
 
-\subsection{Binning}
+\section{Binning}
 To improve signal to noise ratio and reduce the image size, binning can be used. This technique takes a set of values, combines them together into a value that is representative of the whole set. For the monochrome sensor, pixels that are in the same row in the spectral direction represent different bands of the same area in spatial direction\cite{starrywonders}\cite{microscopyu}. As previously mentioned two binning methods were tested in the specialization project, median and mean binning. Mean binning finds the average value of a set while median binning finds the middle value of the sorted set. Mean binning is the better method to find the central value of a set, but median is more rigid against noise\cite{clinfo}\cite{stattrek}.
 
 A good enough method to do mean binning was found in the specialization project, but not for median binning. The different tested sorting algorithms were random  selection,  insertion  sort,
@@ -1127,7 +1179,7 @@ A parallel sorting algorithm often used, is bitonic merge sort. It has a running
 
 The input to a bitonic merge network is a bitonic sequence, this means that one half of a sequence must be in increasing order and the other half in decreasing order. The network then compares corresponding elements of the two halves with each other and moves elements according to the outcome of the comparison. In figure \ref{fig::bitonicmergenetwork}, the arrow points to where the higher value of a comparison moves to. This network consists of four stages, where stage one sorts 2x8 elements, stage two sorts 4x4 elements, stage three sorts 8x2 elements and stage four sorts 18x1 elements. The arrow directions points so that each input to each stage is a bitonic sequence.
 
-\subsection{Endianness}
+\section{Endianness}
 Some hardware store numbers from left to right and some hardware store numbers from right to left. This is what is called endianess and can cause problems if different hardware components with different endianness share and operates on the same data. The two different methods of storing data is called little endian and big endian. In big endian numbers the most significant byte is stored first for a number containing more than one byte and in little endian numbers the least significant byte is stored first. Figure \ref{fig::endianess} shows a example of how a unsigned integer with the value 120 is stored for a big endian system and a little endian system.
 
 \begin{figure}[h!]
@@ -1167,7 +1219,7 @@ Some hardware store numbers from left to right and some hardware store numbers f
 \label{fig::endianess}
 \end{figure}
 
-\subsection{Tools}
+\section{Tools}
 \subsubsection*{Vivado}
 Vivado is a tool that can synthesize and implement low level languages such as vhdl and verilog, as well as high level languages such as C and C++, for a wide variation of different chips\cite{vivado}. It has a IP integrator tool that can be used to import and combine IP(Intellectual property) blocks in a block design. An IP is a hardware design that serves some kind of purpose , that have been packaged into a block, or module. Vivado can package and export designs as IP's and Xilinx have libraries of IP's that can be imported to the design. It has tools for running test benches on designs and debugging on the target hardware.
 
@@ -1178,7 +1230,10 @@ To build the OS petalinux tools is used, this tool builds Embedded Linux systems
 The GCC(GNU Compiler Collection) compiler have been used as a compiler in this project. It compiles C and C++ code and is often used with embedded systems. It can compile for many different architecuter, among those are arm chips. It is possible to include directives as input or also known as pragmas, in the code. Directives tells the compiler how to handle a specific section of code, or it can also give rules that apply globally. It is possible to specifiy if the compiler should optimize code and how much optimization should be applied\cite{mangcc}.
 
 
-\section{Testing of camera}
+\chapter{Testing of camera}
+\label{chap::tests}
+Testing of the limitations of the camera is shown in this chapter. This works as a continuation of the specialization project, the tests that was not time to do there, is tested here.
+
 The Zedboard was used for testing in the specialization project, to have consistency this is being used for testing of the new camera in this project as well. A block diagram of the test setup in the processing system is shown on figure \ref{fig::design1}. A OS is built with petalinux tools and the ueye driver is installed on it the same way as in the specialization project.
 
 \begin{figure}
@@ -1253,7 +1308,7 @@ The camera captures images continuously, the driver store the images in memory a
 \label{fig::design2}
 \end{figure}
 
-\subsection{Binning}
+\section{Binning}
 \label{chap::binningtest}
 The highest binning factor requested by the HYPSO mission to test is 12, to solve this 16 input bitonic network is used, for this to work, zero padding can be used, this wont affect the execution time since this algorithm has a predefined sequence. The network gets implemented with NEON SIMD instructions.
 
@@ -1496,11 +1551,11 @@ The first and second stage from figure \ref{fig::bitonicmergenetwork} is done wi
 \end{tikzpicture}
 
 \captionof{figure}{Two zip instructions}
-\label{fig:shuffle1}
+\label{fig::shuffle1}
 \end{figure}
 
 
-Now one of the eight lane vectors reverses the two four lane sub elements, these two eight lane vectors is the inputs for stage three. This stage of the network sorts 8x2 elements in opposite directions, each half of the eight lane vectors are each of these 8x2 elements. The vectors is compared and a max and a min vector is produced, as shown in figure \ref{fig:stage3input}. Instructions to shuffle the max and min values to the right lane and vectors is done, for the next comparison. This is repeated another time, then the last comparison is done, this produces a high and a low vector which is zipped.
+Now one of the eight lane vectors gets reversed with two four lane sub elements, these two eight lane vectors are the inputs for stage three. This stage of the network sorts 8x2 elements in opposite directions, each half of the eight lane vectors are each of these 8x2 elements. The vectors is compared and a max and a min vector is produced, as shown in figure \ref{fig:stage3input}. Instructions to shuffle the max and min values to the right lane and vectors is done, for the next comparison. This is repeated another time, then the last comparison is done, this produces a high and a low vector which is zipped.
 
 \begin{figure}[h!]
 \centering
@@ -2135,9 +2190,9 @@ for(int imageNumber=0; imageNumber<nSingleFrames; imageNumber++){
 }
 \end{lstlisting}
 
-\subsection{FPS and resolution}
+\section{FPS and resolution}
 \label{chap:TestingFPS}
-To test what maximum framerates and resolutions are possible with the GigE camera, the binning stage in figure \ref{fig::design2} is cut out, so that the only work the CPU is doing is using the driver to write images to memory and fetching a pointer to that memory in the program and freeing the memory again. To measure the framerate, the time it takes from the \textit{is\_WaitForNextImage} function have returned a pointer until the next time the function returns a pointer is recorded. The \textit{is\_WaitForNextImage} function blocks until a image is available in memory. Table \ref{tab:fpsresults} shows the framerate achieved for different resolutions at different bit depths.
+To test what maximum framerates and resolutions are possible with the GigE camera, the binning stage in figure \ref{fig::design2} is cut out, so that the only work the CPU is doing is using the driver to write images to memory and fetching a pointer to that memory in the program and freeing the memory again. To measure the framerate, the time it takes from the \textit{is\_WaitForNextImage} function have returned a pointer until the next time the function returns a pointer is recorded. The \textit{is\_WaitForNextImage} function blocks until a image is available in memory. Table \ref{tab:fpsresults} shows the framerate achieved for different resolutions at different bit-depths.
 
 \begin{table}[h!]
 \caption{Framerate results}
@@ -2169,7 +2224,7 @@ Testing the same resolutions with the binning stage not cut out gives the framer
 
 % Subsampled values with mean binning in the regular CPU core(not SIMD) are on entry 4 and 5, and subsampling with the binning stage cut out are on entry 6 and 7 in the table. It is desirable to have the same number of bins when the subsampling is used too, therefore the number of samples in each bin is reduced to 6 when subsampling 2x is used and 3 when subsampling 4x is used, this proved to be so small bins that it wasnt any point in using SIMD for this.
 
-It was also requested from the HYPSO team that mean binning not in SIMD(regular CPU, or SISD(Single Instruction Single Data)) also should be tested with subsampling, theese results are in the tree first entries of the table. A test with mean binning in SIMD is also shown for comparison. How the mean binning is carried out can be read about in the specialization project\cite{specializationproject}. Three tests for median binning in SIMD, with different subsamlpings and binning factors are tested and two tests with subsampling where no work on the CPU is done have been tested.
+It was also requested from the HYPSO team that mean binning not in SIMD(regular CPU, or SISD(Single Instruction Single Data)) also should be tested with subsampling, theese results are in the three first entries of the table. A test with mean binning in SIMD is also shown for comparison. How the mean binning is carried out can be read about in the specialization project\cite{specializationproject}. Three tests for median binning in SIMD, with different subsamlpings and binning factors are tested and two tests with subsampling where no work on the CPU is done have been tested.
 
 
 
@@ -2199,7 +2254,7 @@ Do nothing sub4x &  32* & 36* & 33* & 37* & 37* & 47 & X & X\\ \hline
 \end{tabular}
 \end{table}
 
-These exact subsambling and binning factors have been tested because this is what the HYPSO mission wanted. The median binning is done in the same way as described in chapter \ref{chap::binningtest}. For binning factor 6, the last stage is of figure \ref{fig::bitonicmergenetwork} is cut away, it then becomes a 8 input bitonic merging network, then for binning factor 6, zero padding is added to on the inputs. For binning factor 4, stage 3 and 4 of the network is cut out, then for binning factor 3, zero padding is added. The CPU load under testing of the framerates have been very fluctuating for both mean and median, it fluctuated between 60\%-80\% for all resolutions, except for the two highest resolutions, here the CPU load stays above 90\%.
+These exact subsambling and binning factors have been tested because this is what the HYPSO mission wanted. The median binning is done in the same way as described in chapter \ref{chap::binningtest}. For binning factor 6, the last stage is of figure \ref{fig::bitonicmergenetwork} is cut away, it then becomes a 8 input bitonic merging network, then for binning factor 6, zero padding is added to the inputs. For binning factor 4, stage 3 and 4 of the network is cut out, then for binning factor 3, zero padding is added. The CPU load under testing of the framerates have been very fluctuating for both mean and median, it fluctuated between 60\%-80\% for all resolutions, except for the two highest resolutions, here the CPU load stays above 90\%.
 %CPU fluctuates between 60-80% when binning with SIMD for both median and mean
 %AVG binning time, subsampling 2x = 14ms
 %AVG binning time, subsampling 4x = 18ms
@@ -2215,7 +2270,7 @@ Figure \ref{fig::bps} shows the throughput of bytes for the framerates achieved 
 	\label{fig::bps}
 \end{figure}
 
-\subsection{Trigger mode}
+\section{Trigger mode}
 
 To see if there is any difference in stability and CPU load between using HW-Trigger and freerun mode, a signal generator is connected to pin four and seven of the camera. Testing is done by recording the time between each frame is captured, the same way as in chapter \ref{chap:TestingFPS}. When using the same resolutions and FPS as in table \ref{tab:fpsresults} for 16-bit images, there is no noticeable difference in CPU utilization or imagecapture stability between HW-Trigger and freerun mode. Figure \ref{fig:triggerresults} shows the timing results for resolutions 1280x720 and 1936x1216. There is a difference between maximum resolution with maximum stable framerate and lesser resolutions. As shown in figure \ref{subfig-2:19361216}, the time between frames becomes much more unstable, compared to figure \ref{subfig-1:1280720}. Figure \ref{subfig-1:1280720} is more or less how it looks like for all other resolutions than full resolution.
 
@@ -2240,14 +2295,16 @@ To see if there is any difference in stability and CPU load between using HW-Tri
 
 
 \FloatBarrier
-\section{Baseline image processing pipeline}
+\chapter{Processing pipeline}
+\label{chap::pipeline}
+A design for how to capture and compress images have been made, here is a short explanation on how the process of getting a image pipeline up and running was, a explanation of how the design looks like and how the different modules in the design works.
 
 The process of getting the pipeline to work was to first get the cubeDMA implementation running with no OS and to get to know the design, then build it with Linux and get it to run the same way there. Because Linux is a virtual memory system, it swaps pages in and out of memory at will. Therefore, a driver that handles DMA memory had to be made for cubeDMA to work with Linux. Then implement the CCSDS123 and verify it and then make everything work together.
 
-\subsection{Implementing CubeDMA}
+\section{Implementing CubeDMA}
 To implement CubeDMA for the Zynq system, Vivados block design feature is used. A CubeDMA block can be added with just dragging and dropping from RTL design, but this can turn out to be a mistake. When this is done the the generic parameters is set to their default values, regardles of what is specified in the block design. This is with Vivado version 2018.3, it might not be an issue in other versions. For this not to happen, the RTL design must be exported as an IP from Vivado and then imported to the block design. Once this is done, the parameters for axis width, component width and number of components can be set. To use BSQ order transfer, tinymover must also be enabled.
 
-For testing purposes, a FIFO is used, this has to be the same width as CubeDMA and be connected between \textit{s\_axis\_s2mm} channel and \textit{m\_axis\_mm2s}. The Zynq processing system 7 core must be added to act like a logic connection between the PS and the PL. This core can also manage the peripheral I/O connections. It is important that Ethernet, USB, SD and UART are connected to MIO pins for the PS to functional. MIO pins are the pins which connects the peripheral devices to the I/O mux on figure \ref{fig::soc}. Figure \ref{fig::blockdesign} shows how this block design looks like when everything is connected.
+For testing purposes, a FIFO is used, this has to be the same width as CubeDMA and be connected between \textit{s\_axis\_s2mm} channel and \textit{m\_axis\_mm2s}. The Zynq processing system 7 core must be added to act like a logic connection between the PS and the PL. This core can also manage the peripheral I/O connections. It is important that Ethernet, USB, SD and UART are connected to MIO pins, for the PS to function. MIO pins are the pins which connects the peripheral devices to the I/O mux on figure \ref{fig::soc}. Figure \ref{fig::blockdesign} shows how this block design looks like when everything is connected.
 
 \begin{figure}[h!]
 	\centering
@@ -2256,12 +2313,12 @@ For testing purposes, a FIFO is used, this has to be the same width as CubeDMA a
 	\label{fig::blockdesign}
 \end{figure}
 
-\subsection{Building Linux}
+\section{Building Linux}
 The hardware design made in Vivado must be exported and added in petalinux tools, the design will then be uploaded to the FPGA when the system boots.
 
 A device tree is a datastructure that holds information about the hardware the system is runing on, this is read by the kernel when booting. Included in this tree is the size of RAM, it is not possible to change RAM size or anything other in the device tree with petalinux. However it is possible to add things into the device tree. One node type that can be added is a reserved memory node, this node reserves a range of memory from a starting address, this range will not be mapped to the kernels virtual address space, user virtual address space or be used in any way by the kernel. After this is added the boot images can be built and the system can be booted.
 
-\subsection{Kernel module}
+\section{Kernel module}
 \label{chap::kernelmodule}
 
 The driver written is essentially two instances(or two devices) of one driver, when it is first initialized it creates two different kernel modules, one for sending data and one for receiving data. The memory reserved from being used by the kernel can be mapped to user space with the \textit{mmap} function by the kernel, how this is done is shown in listing \ref{lst:usmap}.
@@ -2285,8 +2342,6 @@ The first thing the mmap function is doing is copy the content from \textit{priv
 Then in line 4 of listing \ref{lst:usmap} the inode is used to find the major number of this driver instance to decide if it should map the receiver address or sender address to memory. The function that does the actual mapping of memory, is the function in line 5 or 8 based on if it is the receiver or sender. The function builds a page table of user space virtual addresses, for a range of physical addresses and passes it to user space. Many of the arguments for this function is provided from the kernel, when mmap is called, the arguments passed to \textit{remap\_pfn\_range} are:
 
 \begin{tcolorbox}[coltitle=black, colframe=gray!50, title={int \textsf{remap\_pfn\_range}(struct vm\_area\_struct* \textbf{vma}, unsigned \textbf{long virt\_addr}, unsigned long \textbf{pfn}, unsigned long \textbf{size}, pgprot\_t \textbf{prot})}]
-
-\textbf{Mode} - What colormode to set
 
 \textbf{vma} - The virtual memory area the pages are being mapped.
 
@@ -2334,7 +2389,7 @@ static long dev_ioctl(struct file* file, unsigned int cmd, unsigned long arg){
 }
 \end{lstlisting}
 
-\subsection{User space}
+\section{User space}
 \label{chap::userspace}
 From user space the driver can be opened the same way as a file, shown on line 1 and 2 in listing \ref{lst:usrspc}. Since the driver is initialized with two instances, both has to be opened. The mmap functions on line 4 and 6 gets a pointer to the virtual memory mapped from the driver. These pointers can now be used to read and write to the addresses reserved from the kernel.
 
@@ -2348,7 +2403,7 @@ send_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dm
 recieve_channel = (struct dma_proxy_channel_interface *)mmap(NULL, sizeof(struct dma_proxy_channel_interface), PROT_READ | PROT_WRITE, MAP_SHARED, fd_recieve, 0);
 \end{lstlisting}
 
-The memory mapped cubeDMA registers can be found in the mem file, opened and mapped to user space memory, as shown in listing \ref{lst:devusr}. This maps one page from base address of the device and casts it as a 32 bit pointer, this is 32 bit because the device registers are 32 bit. The base address for the device can be found in the address field of the device in vivado, this is usually 0x43c00000 or higher.
+The memory mapped cubeDMA registers can be found in the mem file, opened and mapped to user space memory, as shown in listing \ref{lst:devusr}. This maps one page from base address of the device and casts it as a 32-bit pointer, this is 32-bit because the device registers are 32-bit. The base address for the device can be found in the address field of the device in vivado, this is usually 0x43c00000 or higher.
 
 \begin{lstlisting}[language=C++, caption={Map device to user space}, label={lst:devusr}]
 fd = open("/dev/mem", O_RDWR|O_SYNC)
@@ -2356,9 +2411,9 @@ deviceMem = static_cast<uint32_t*>(mmap(0, getpagesize(), PROT_READ|PROT_WRITE, 
 
 \end{lstlisting}
 
-\subsection{Implementing CCSDS123}
+\section{Implementing CCSDS123}
 
-To implement CCSDS123, the FIFO in figure \ref{fig::blockdesign} is switched out with the CCSDS123 module. The module can either be added by importing the source files or having it made into an IP and imported to the project the same way as cubeDMA is. The samples from the camera use unsigned values, so the CCSDS123 must also use this. The on the fly option must be un-checked when setting up, if on the fly processing is enabled and the cubeDMA is delivering data slower or faster than the CCSDS123 module reads it, the result will become corrupted. Number of pipelines, bit depth and bus width must match with axis width, number of components and component width for both MM2S and S2MM on the cubeDMA block. The rest of the parameters is up to the user. Figure \ref{fig::utilization} shows how much of the FPGA's resources is utilized when the design is implemented on the Zedboard.
+To implement CCSDS123, the FIFO in figure \ref{fig::blockdesign} is switched out with the CCSDS123 module. The module can either be added by importing the source files or having it made into an IP and imported to the project the same way as cubeDMA is. The samples from the camera use unsigned values, so the CCSDS123 must also use this. The on the fly option must be un-checked when setting up, if on the fly processing is enabled and the cubeDMA is delivering data slower or faster than the CCSDS123 module reads it, the result will become corrupted. Number of pipelines, bit-depth and bus width must match with axis width, number of components and component width for both MM2S and S2MM on the cubeDMA block. The rest of the parameters is up to the user. Figure \ref{fig::utilization} shows how much of the FPGA's resources is utilized when the design is implemented on the Zedboard.
 
 \begin{figure}[!htb]
      \centering
@@ -2381,9 +2436,9 @@ To implement CCSDS123, the FIFO in figure \ref{fig::blockdesign} is switched out
 
 The endianess of the input data has to be little endian. To test that everything compresses and transfers correctly, the raw data is also stored on the board, then it is compressed by a software compressor called Emporda. Since this is a lossless compression algorithm the Emporda result should be the same as the FPGA result, these two results is then compared. It should be noted that the user defined parameters must be the same for the FPGA implementation and Emporda for the results to be the same.
 
-\subsection{System design}
+\section{System design}
 \label{chap::systemdesign}
-Figure \ref{fig::systemov} shows the systems modules and how they fit together. In the processing system the HSICamera module uses the camera driver to capture frames, make a cube and then store it to memory. The DMA memory manager handles DMA memory, like it is described in chapter \ref{chap::kernelmodule} and the CDMA driver handles interfacing with CubeDMA. In programmable logic, CubeDMA fetches a cube from memory, sends it to CCSDS123 module which compresses the image sends it back to CubeDMA which in turn sends it back to memory again.
+Figure \ref{fig::systemov} shows the systems modules and how they fit together. In the processing system the HSICamera module uses the camera driver to capture frames, make a cube and store it to memory. The DMA memory manager handles DMA memory, like it is described in chapter \ref{chap::kernelmodule} and the CDMA driver handles interfacing with CubeDMA. In programmable logic, CubeDMA fetches a cube from memory, sends it to CCSDS123 module which compresses the image sends it back to CubeDMA which in turn sends it back to memory again.
 
 \begin{figure}
 \begin{tikzpicture}
@@ -2416,15 +2471,15 @@ Figure \ref{fig::systemov} shows the systems modules and how they fit together. 
 \path [draw, ->, thick, -latex] (camera) -- (driver);
 \path [draw, ->, thick, -latex] (driver) -- (hsi);
 \path [draw, ->, thick, -latex] (hsi) -- (driver);
-\path [draw, ->, thick, -latex] (hsi) -- (mem);
-\path [draw, ->, thick, -latex] (hsi) -- (cdmadriver);
+\path [draw, ->, thick, -latex] (hsi) -- (10.8, 0);
+\path [draw, ->, thick, -latex] (hsi) to [out=-120,in=20] (cdmadriver);
 \path [draw, ->, thick, -latex] (hsi) -- (dmamem);
 \path [draw, ->, thick, -latex] (dmamem) -- (mem);
-\path [draw, ->, thick, -latex] (cdmadriver) -- (cubdma);
+\path [draw, ->, thick, -latex] (cdmadriver) to [out=-10,in=120] (cubdma);
 \path [draw, ->, thick, -latex] (ccsds) -- (cubdma);
 \path [draw, ->, thick, -latex] (cubdma) -- (ccsds);
-\path [draw, ->, thick, -latex] (mem) -- (cubdma);
-\path [draw, ->, thick, -latex] (cubdma) -- (mem);
+\path [draw, ->, thick, -latex] (10.8, -6) -- (cubdma);
+\path [draw, ->, thick, -latex] (cubdma) -- (10.8, -6);
 
 % \path [draw, ->, thick, -latex] (program) -- (mem);
 % \path [draw, ->, thick, -latex] (mem) -- (program);
@@ -2446,11 +2501,11 @@ The HSICamer and CDMADriver module are C++ classes and DMAMemManager is a kernel
 	\label{fig::uml1}
 \end{figure}
 
-\subsubsection{CubeDMADriver}
+\subsection{CubeDMADriver}
 
-The driver for cube DMA transfer has a init fuction that has to be run before it can be used, what it is doing is it opens the device memory file in Linux and maps the device address as a 32-bit pointer to the driver, like described in chapter \ref{chap::userspace}. It then initializes the registers with a \textit{cubedma\_init\_t} struct that is passed to the function. The \textit{cubedma\_init\_t} struct contains the fields shown in table \ref{tab::S2MM} and \ref{tab::MM2S}. It has functions for starting a transfer and polling the device registers to check if transfer is finished for the receive and send channels of CubeDMA or check if a interrupt has occured.
+The driver for cube DMA transfer has a init fuction that has to be run before it can be used, what it is doing is it opens the device memory file in Linux and maps the device address as a 32-bit pointer to the driver, like described in chapter \ref{chap::userspace}. It then initializes the registers with a \textit{cubedma\_init\_t} struct that is passed to the function. The \textit{cubedma\_init\_t} struct contains the fields shown in table \ref{tab::mm2s} and \ref{tab::S2MM}. It has functions for starting a transfer and polling the device registers to check if transfer is finished for the receive and send channels of CubeDMA or check if a interrupt has occured.
 
-\subsubsection{HSICamera}
+\subsection{HSICamera}
 
 The AOI method of setting the resolution is used, this is because it gives the freedom to use any resolution, it takes an width and height, then sets the AOI to be in the middle of the sensor.
 
@@ -2527,7 +2582,7 @@ To capture a image two functions is used \textit{initialize} and \textit{run\_cu
     \item \textbf{Frames.} Number of frames in the cube.
     \item \textbf{FPS.} Framerate of the camera
     \item \textbf{Cube format.} Cube format is a enumerator used to specify what cube format to store the raw cube in, or to store it at all. Listing \ref{lst::cubeform} shows this enumerator, None mean to not store the cube.
-    \begin{lstlisting}[language=C++, caption={Cube formats}, label={lst:cubeforms}, numbers=none]
+    \begin{lstlisting}[language=C++, caption={Cube formats}, label={lst:cubeform}, numbers=none]
         enum cubeFormat { Bil, Bip, Bsq, Raw, None };
     \end{lstlisting}
 
@@ -2538,7 +2593,7 @@ Variables for binning is calculated, variables such as; How many binns there are
 
 Memory allocation for camera frames is done and a image memory buffer of size ten is made, ten is used because this has been sufficient enough during development. The DMAMemoryManager is used to allocate memory for the cube and the device memory is mapped into user space as described in a previous chapters.
 
-When the \textit{run\_cube\_capture} function is run, the program captures the frames, builds a cube and sends it to the FPGA, compresses it and recieves the compressed cube back. It is possible to use three different binning methods, median binning with SIMD instructions, mean binning with SIMD instructions or mean binning with ordinary CPU instructions. Three different functions has been written that captures frames and binns them, the only differences between them is the binning method. One gets called from the \textit{run\_cube\_capture} function, the one that is called is decided by the \textit{binning\_method} varialbe in the header file. The reason for having three possibilities is if further testing is needed later in the project.
+When the \textit{run\_cube\_capture} function is run, the program captures the frames, builds a cube and sends it to the FPGA, compresses it and recieves the compressed cube back. It is possible to use three different binning methods, median binning with SIMD instructions, mean binning with SIMD instructions or mean binning with ordinary CPU instructions. Three different functions has been written that captures frames and binns them, the only differences between them is the binning method. One gets called from the \textit{run\_cube\_capture} function, the one that is called is decided by the \textit{binning\_method} variable in the header file. The reason for having three possibilities is if further testing is needed later in the project.
 
 The samples from the camera are in little endian order, the processing system uses big endian and the CCSDS123 implementation needs little endian as input. That means the entire frame needs to be byte swapped to big endian before binning can be done, then the binned value has to be swapped back to little endian again. The byte swapping is done with the \textit{byteswap.h} C++ library.
 
@@ -2562,11 +2617,11 @@ struct dma_data {
 After the cube is captured, the cube is stored in the format specified in the Cube format variable, or not at all if that is specified. The cube is then transferred using the functions in the \textit{CubeDMADriver} module and the caches flushed and cleaned.  When the compressed cube is received in the processing system, it is stored.
 
 
-\subsubsection{DMAMemoryManager}
+\subsection{DMAMemoryManager}
 
 The \textit{DMAMemoryManager} is largely described in chapter\ref{chap::kernelmodule}. The init function is always run when the module is initialized, this function initializes two channels or devices for DMA, one for receiving and one for sending. The driver holds one struct called \textit{device\_data} for each channel, shown in listing \ref{lst::driverchannel}
 
-\begin{lstlisting}[language=C++, caption={Device data}, label={lst::driverchannel}]
+\begin{lstlisting}[language=C++, caption={Device data}, label={lst::driverchannel}, numbers=none]
 struct device_data{
 	int    major_number;
 	struct class*  p_device_class;
@@ -2581,7 +2636,7 @@ static struct device_data dma_channel[2]; //0=send 1=recieve
 This \textit{device\_data} struct holds the major number for the devices, device pointer, class pointer and a \textit{dma\_data} pointer. The \textit{dma\_data} pointer is a pointer to the DMA send and recieve memory region, this is used when cleaning and flushing cache.
 
 
-\subsection{CSP Service}
+\section{CSP Service}
 The CSP protocol is written in C and the design is written in C++, therefore a C interface ha been written for the design. It consists of two files, one cpp file that wraps the C++ functions, this is shown in listing \ref{lst::cppwrap} and one header file that decleares the function wrappers and a void pointer that is re casted to point to C++ objects, this is shown in listing \ref{lst::hwrap}.
 
 \begin{lstlisting}[language=C++, caption={Wrapper for C++}, label={lst::cppwrap}]
@@ -2627,7 +2682,7 @@ void cli_hsi_init_cmds(cli_cmd *c_hsi)
 
 In the \textit{cli\_hsi\_init}, the CSP packet is packaged with the command and data, this data is the initialization variables for the camera and are user inputs. The client connects to the CSP node and service. The node is identified with a ID number, this ID is set when the CSP nodes are built and compiled. When a connection is accepted the package sent to the service. The same pattern goes for the \textit{cli\_hsi\_capture} as well.
 
-Figure \ref{fig::sequence} shows a sequence diagram of how one cube is captured with a CSP service. The client sends the init command with parameters to the service, this opens the camera  and runs \textit{initialize} function in \textit{HSICamera}, that configures the camera and allocates memory. Then a capture cube command is sent from the client, this runs the cube capturing routine int \textit{HSICamera}, this routine capture frames from the camera and bins them, then stores them. Then the \textit{CubeDMADriver} gets initialized for data transfer. Then the cache is cleaned, a cube is transfered, compressed and transfered back again and the caches flushed. Then the cube is stored and the camera closed.
+Figure \ref{fig::sequence} shows a sequence diagram of how one cube is captured with a CSP service. The client sends the init command with parameters to the service, this opens the camera  and runs \textit{initialize} function in \textit{HSICamera}, that configures the camera and allocates memory. Then a capture cube command is sent from the client, this runs the cube capturing routine in the \textit{HSICamera}, this routine capture frames from the camera and bins them, then stores them. Then the \textit{CubeDMADriver} gets initialized for data transfer. Then the cache is cleaned, a cube is transfered, compressed and transfered back again and the caches flushed. Then the cube is stored and the camera closed.
 
 \begin{figure}[h!]
 	\centering
@@ -2636,7 +2691,7 @@ Figure \ref{fig::sequence} shows a sequence diagram of how one cube is captured 
 	\label{fig::sequence}
 \end{figure}
 
-\subsection{Challenges}
+\section{Challenges}
 
 A few other methods for memory allocation have been tried before the chosen solution was arrived on. The function \textit{kmalloc (size\_t size, gfp\_t flags)} allocates a contiguous region of memory, that can be set as non movable, meaning that the kernel won't swap the pages out of memory. It returns a pointer to a kernel logical address of the size specified. The maximum size this function can allocate on this particular system is 4MB making it unusable for a cube.
 
@@ -2644,12 +2699,12 @@ Another function that is made for the specific purpose of allocating memory for 
 
 Memory fills up with non movable pages quite quickly, the largest amount of memory allocated on the zedboard with \textit{dma\_alloc\_coherent} is 15MB. Linux has a framework for contiguous memory allocation, this is called CMA. It can reserve memory from the kernel at boot time. This without any rebuild of the kernel, arguments are simply passed to the kernel at boot time, that specifies the size of memory and which kernel modules that are allowed to use it. These modules can allocate this memory with CMA functions or when the \textit{dma\_alloc\_coherent} function is used, the function use the CMA memory automatically. The problem with this was that the kernel wouldn't give up more than 64MB to CMA, for unknown reasons. It is also possible to pass arguments to the kernel at boot time that tells it to reserve memory or to not use the whole memory, this also proved to be unsuccessful for unknown reasons.
 
-
-\section{Analysis}
+There have been some problems with the SD cards, after a while some of them break. A Linux terminal program called fsck have been used to fix those who have been possible to fix, but not all are fixable.
+\chapter{Analysis}
 \label{chap:analDisc}
+This chapeters discusses a few examples on how frames can be captured, and that compromises have to made to achieve higher rates for resolution and framerate. The low framerate and a possible reason for it, is discussed. Also a few things in the image pipeline design is touched upon. Stuff that has to be done and improvements is presented and a short conclusion is given at the end.
 
-
-\subsection{Discussion}
+\section{Discussion}
 
 In the specialization project it was concluded that mean binning with SIMD were preferable before median and mean binning with regular CPU instructions. This can also be confirmed with the results in table \ref{tab:fpsresults2}, here mean binning with SIMD instructions reaches a higher FPS than with regular CPU instructions. The table also shows that median binning with SIMD is faster than mean binning with SIMD, which is a good thing because it was also concluded that median binning gave a better S/N ratio than mean binning in the specialization project.
 
@@ -2662,28 +2717,29 @@ When it comes to HW-trigger vs Freerun mode, it does not seem to make any differ
 Because of memory constraints it is not possible to fit the goal of 2254 frames with 1936x1216 resolution and 12-bit depth in memory, this is why binning is necessary. Without binning and the goal, $2254\times1936\times1216=5306312704$ pixel samples is obtained for one cube, and with 12-bit samples one cube would require $\frac{5306312704*12-bit}{8-bit}=7.95GB$, which is more than it is room for on the 1GB memory. But it might be possible to store smaller cubes to the SD-card while the frames are captured, then send each cube to be compressed one by one and then store each compressed cube to the SD-card. But this would use time, in the specialization project, storing of one cube with the size of 360MB takes 7-9 seconds. If this is to be done for almost 8GB of data, it is going to take a considerable amount of time, it would have to be first stored, then read and sent to the FPGA, then stored again, and then read again to be sent over the CSP bus. This would easily break the timing constraint of having the data ready 70 seconds after the last frame is captured.
 
 
-So, no. It is not possible to reach the goal of capturing 2254 12-bit images at a resolution of 1216x1936 with a framerate of 32fps with this hardware. But with the help of binning and subsampling, a cube that fulfills the requirements of the data might be possile. For example, with subsampling x2 and binning factor of 8, a framerate of 16 is achieved with full resolution. A cube like this uses 497MB of memory which fits well into the constraints of the Picozed. If a framerate of 32 is necessary, the same subsampling and binning factor can be used with a resolution of 1024x1024, this gives a FPS of up to 36, this cube uses 221GB of memory. Another possibility is to capture fewer frames, if subsampling x2 is used with 2254 1024x1024 frames and no binning, the framerate is 37 and the space a cube occupies is 1.77GB, but if only 1100 frams is capture, it would use 865MB. It might be that the optics does not cover the whole image sensor, the dark part of the sensor is not needed, this will be contributing factor to what the area of interest will finally be.
+So, no. It is not possible to reach the goal of capturing 2254 12-bit images at a resolution of 1216x1936 with a framerate of 32fps with this hardware. But with the help of binning and subsampling, a cube that is good enough for the requirements of the data might be possible. For example, with subsampling x2 and binning factor of 8, a framerate of 16 is achieved with full resolution. A cube like this uses 497MB of memory which fits well into the constraints of the Picozed. If a framerate of 32 is necessary, the same subsampling and binning factor can be used with a resolution of 1024x1024, this gives a FPS of up to 36, this cube uses 221GB of memory. Another possibility is to capture fewer frames, if subsampling x2 is used with 2254 1024x1024 frames and no binning, the framerate is 37 and the space a cube occupies is 1.77GB, but if only 1100 frames is capture, it would use 865MB. It might be that the optics does not cover the whole image sensor, the dark part of the sensor is not needed, this will be contributing factor to what the area of interest will finally be.
 
-The CCSDS123 implementation reads and writes continuously, meaning that the output stream does not get delayed until the whole input stream is read. In this project there have been an attempt to delay the output stream with FIFO's on the output of the CCSDS123 block, but the resources of the FPGA is too limited. The deepest FIFO IP available in Vivado is 32768 bits deep and utilizes 65 BRAM elements. From the results in the CCSDS123 report, the average compression ratio is 3. If for example a cube of 500MB is to be compressed, the compressed file will likely be 166MB, then about 5066 FIFO blocks is needed. From figure \ref{fig::utilizationall} one can see that 43.5 of the 140 available BRAM is used and that if one FIFO uses 65 BRAM elements that 5066 FIFO block abviously will exceed the FPGA's limit. This means that there has to be room for the compressed cube in memory when CCSDS123 streams data out.
+The CCSDS123 implementation reads and writes continuously, meaning that the output stream does not get delayed until the whole input stream is read. In this project there have been an attempt to delay the output stream with FIFO's on the output of the CCSDS123 block, but the resources of the FPGA is too limited. The deepest FIFO IP available in Vivado is 32768 bits deep and utilizes 65 BRAM elements. From the results in the CCSDS123 report, the average compression ratio is 3. If for example a cube of 500MB is to be compressed, the compressed file will likely be 166MB, then about 5066 FIFO blocks is needed. From figure \ref{fig::utilizationall} one can see that 43.5 of the 140 available BRAM is used and that if one FIFO uses 65 BRAM elements that 5066 FIFO block abviously will exceed the FPGA's limit. Also the biggest chip available for a Picozed board has 265 BRAM blocks, that is also definitively too small. This means that there has to be room for the compressed cube in memory when CCSDS123 streams data out.
 
 With a average compression ratio of 3, there must be room for the compressed image that is at least one third of the size of cube. This means that if 800MB is allocated for DMA memory, at least 200MB of that must be dedicated to the compressed cube. It might also be possible to be receiving the compressed cube at the same location as the uncompressed cube is read from, if it is impossible for the writing to catch up with the reading and corrupt the data, this has not been tested for.
 
 The gigabit ethernet standard has a speed of 1000Mbps, 12-bit pixels are stored in 16-bit words in memory. From the manual\cite{ueyemanual} it says that data is sent over ethernet in 32-bit words. Efforts have been made to get more information of the communication protocol and the camera driver from IDS, but they have been reluctant to give it out. Therefore it is assumed that the 12-bit words are zero padded to 16-bit words in the camera and then packed into 32-bit words and sent over ethernet. This would mean that for full resolution, a framerate of 26-27 should be achieved, based on the theroretical speed of the ethernet protocol. This is not the case, as seen in table \ref{tab:fpsresults}.
-On a PC, FPS of 24 is reached with full reolution, this is not as fast as the theoretical speed, but this rules out the possibility that it is the ethernet connection that is limiting the speed.
+On a PC, FPS of 24 is reached with full resolution, this is not as fast as the theoretical speed, but this rules out the possibility that it is the camera or ethernet connection that is limiting the speed.
 
-The CPU utilization is high for the three first 16-bit values in figure \ref{fig::bps} and the throughput is considerably lower than for the rest of the resolution. But for the rest of the resolutions the throughput averages around 49MBps, which is under half of what the theoretical speed is for gigabit ethernet(1Gbps is the same as 125MBps). This could indicate that for the the high resolutions with high bit-depth, there is many pixels and loads of data to process as they are received and stored in memory, therefore it could be the CPU who limits the the speed. Then as there are fewer pixels to process, the speed goes up and averages around about 49MBps. The reason for the low 49MBps average must be something else than the CPU then, and out from figure \ref{fig::soc}, there is a Ethernet peripheral between the bus and the multiplexer, it is possible that this is the bottle neck.
+The CPU utilization is high for the three first 16-bit values in figure \ref{fig::bps} and the throughput is considerably lower than for the rest of the resolutions. But for the rest of the resolutions the throughput averages around 49MBps, which is under half of what the theoretical speed is for gigabit ethernet(1Gbps is the same as 125MBps). This and the fact that throughput goes up as CPU utilization goes down could indicate that for the the high resolutions with high bit-depth, there are many pixels and loads of data to process as they are received and stored in memory, therefore it could be the CPU who limits the the speed in these cases. Then as there are fewer pixels to process, the speed goes up and averages around about 49MBps. The reason for the low 49MBps average must be something else than the CPU then, and out from figure \ref{fig::soc}, there is a Ethernet peripheral between the bus and the multiplexer, it is possible that this is the bottle neck.
 
 It would probably have been a more pretty and generic solution to use the CMA framework embedded in Linux instead of making a reserved memory node and remapping the memory back. But when debugging the problem, no reason for it not work was found, that does not mean that no solution to the problem exist. Someone with more knowledge about Embedded Linux systems and petalinux might figure it out, but because of the time left of the project and and the fact that the current DMA solution actually does the job, it was decided to go for that, rather than use more time figuring out why CMA does not work.
 
 There are more ways of swapping endianess and packing bits than the ways it have been done in this project. But since it seems like it does not have a significant effect on the execution time in this project, more options have not been tested. Since the driver uses a interface written in C and the CSP services is written in C, it might have been easier to write the \textit{HSICamera} and \textit{CubeDMADriver} modules in C as well. Then a extra C interface does not have had to be written for the CSP service.
 
+It is somewhat worrying that some SD cards break so easily, this can be a problem in flight. It is not easy to fix or change a broken SD card in space. A solution can be to not use cheap cards, and instead use more more rugged industrial cards. It also exists SD cards that have been tested for space, but more research on this has to be done in the HYPSO project.
 %Using other boards
 %Use other camera
 
-\subsection{Future work}
+\section{Future work}
 There is quite some work left before this design can be used on the finished satellite, the most important thing is to make the design more reliable and rigid, in this thesis there have been little or no focus on error handling and fault prevention. This thesis have only set up a basic design and image processing chain that can be built on to make a end result that can run on the satellite.
 
-The actual specifications on the software design have not been decided upon yet, with regards to if or how much subsampling is acceptable, how many bands can be binned, how much freedom to change the AOI of the sensor, how many frames to capture in flight and camera sensor settings. As of now the user is free to change the exposure time of the sensor the size of the AOI, number of frames to capture, the FPS and what cube format the binned cube is stored in. This may have to be changed in the design in the future when the specifications have been agreed upon, so there have been an attempt to make the design generic for now and easy to change and build on.
+The actual specifications on the software design have not been decided upon yet, with regards to if or how much subsampling is acceptable, how many bands can be binned, how much freedom to change the AOI of the sensor, how many frames to capture in flight and camera sensor settings. As of now the user is free to change the exposure time of the sensor the size of the AOI, number of frames to capture, the FPS and what cube format the binned cube is stored in. This may have to be changed in the design in the future when the specifications have been agreed upon, so there have been an attempt to make the design generic for now and easy to change and build on later.
 
 Other things that has to be in place is the insertion of the kernel module, now the module is inserted with the command line after the OS has booted. It is much more convenient to insert it at boot time, this should be a easy thing to build in petalinux. There has also been discovered a issue at the end of this thesis, with the compressed cube. Sometimes there are a few trailing zeros at the end of the compressed file, the numbers of zeros have been observed to be either none or four, but not enough observations have been made to determine this. One cause for this problem could be at the output of the CCSDS123 block in the FPGA, it may be possible that when the output bitstream of CCSDS123 block is larger than the last output word from the algorithm, that it gets zero padded at the end. For example if the output bitstream is 64(The Bus width in table \ref{tab::ccsds}) and the last output word from the algorithm is 32, then the 32 last bits is set to zero, making there be four trailing zeros at the end of the compressed file. This is just a theory, this error has to be detected and fixed.
 
@@ -2695,14 +2751,14 @@ It might be worth doing further investigations of why the speed is so degraded w
 
 There should also be a timestamp for each frame that is captured, this could be put together to work in several different ways. It can happen on a separate microcontroller, some other hardware component or the SOC capturing the frames. If the timestamping is done on this chip, the driver API or the flash pin on the camera can be used as the signal for a image being captured. The timing diagram in figure \ref{fig:triggerHW} and \ref{fig:freerun} shows how image capturing, API events and pin signals are synchronized in relation to each other. Since the timing of transfer and pre-processing can be variable, it is probably most stable to not use the API event and instead use the flash pin, the trigger pin can also be used if HW-triggering mode is used and not freerun mode. The signal from the camera can be connected to a interrupt pin and then a small program that logs the time of the signal can be run, this could in turn slow down the image acquisition, therefore it might be best to do this on a separate piece of hardware, but this have to be tested for.
 
-\subsection{Conclusion}
+\section{Conclusion}
 To conclude with. It is not possible to get the desired rates for FPS and resolution with this hardware and camera, the memory is simply too small, the processor too slow and the transfer speed between camera and processing system is too limited. But it is however possible to reduce the framerate and resolution and reach some compromise of what is acceptable for the data. A merging network in SIMD have been shown to make median binning possible and even faster than mean binning is in SIMD.
 
 The operating system supports DMA access, the DMA core and CCSDS123 core in programmable logic can access DMA memory and compress the data there. There is more work to be done on the design before it is space ready and there is room for improving and testing some things. The possibility of writing to the same address as is written from when compressing the cube should be investigated, also the problem with trailing zeros on the compressed cube must be solved.
 
 Now that it is somewhat clear what capabilities this camera and hardware have and what rates can be expected. Specifications for the final version of the image acquisition pipeline should be made, in relation to what features and options on for example resolution, framerate and binning types should be available, and how generic things should be. Making it easier to continue the work with some clear goals of what the design is actually supposed to do.
 
-\section{Appendices}
+\chapter{Appendices}
 \begin{tabular}{ll}
 Appendix 1: & Tutorial for setting up everything\\
 \end{tabular}
