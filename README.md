@@ -1,4 +1,5 @@
 
+
 # Create HW description files for DMA and CCSDS123.
 
 Clone the Smallsat student project repository from bitbucket, the Vivado Design Suite is also needed for this tutorial, the version used here is 2018.3.
@@ -114,7 +115,6 @@ The generic variables for ccsds123 and cubeDMA can be set by double clicking on 
 
 ### Cube DMA
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/cubedmaparam.jpg?raw=true "Title")
-
 In the  Zynq7 block, under MIO configurations see that all the I/O peripherals is connected with a MIO connection, if some are connected as EMIO, change it to MIO.  Go to Interrupts, under PL-PS Interrupt ports check IRQ_F2P. Then add a 64bit hp slave axi interface if there is none already, under PS-PL Configuration. Figures on how this looks like follows:
 
 ![alt text](https://github.com/NOTANDers/MasterThesis/blob/master/Figures/zynqMIO.jpg?raw=true "Title")
@@ -185,7 +185,7 @@ petalinux-config --get-hw-description [Path to HW description files]
 ```
 The path to HW description files is the folder containing the files exported from Vivado, if no HW design is made in vivado, no path or the path to the Petalinux pre-built HW description files can be used. The path to this is `hardware/[bsp version]/[bsp version].sdk`
 
-In this menu make sure that the boot image and kernel image is loaded from the SD card. Go to `Subsystem AUTO Hardware Settings --> Advanced bootable images storage Settings --> boot image settings --> image storage media` make sure primary sd is set, then go to `Subsystem AUTO Hardware Settings --> Advanced bootable images storage Settings --> kernel image settings --> image storage media` and make sure primary sd is set. Then exit and save the changes.
+In this menu make sure that the boot image and kernel image is loaded from the SD card. Go to `Subsystem AUTO Hardware Settings --> Advanced bootable images storage Settings --> boot image settings --> image storage media` make sure primary sd is set, then go to `Subsystem AUTO Hardware Settings --> Advanced bootable images storage Settings --> kernel image settings --> image storage media` and make sure primary sd is set. Lastly, go to `Image packing configureations -> Root file system type` and make sure SD card is set. Then exit and save the changes.
 
 Next include the necessary packages in the file system.
 ```
@@ -271,7 +271,7 @@ Clone the project
 ```
 git clone https://github.com/NOTANDers/MasterThesis.git
 ```
-Navigate to the main folder and compile the camera program, the downloaded toolchain can be used to compile with.
+Navigate to the main folder and compile the camera program, the downloaded toolchain can be used to compile with The main.cpp file in the main folder can be used to change the parameters to the initialize function.
 ```
 <TOOLCHAIN_DIR>/bin/arm-linux-gnueabihf-g++ -O3 main.cpp HSICamera.cpp CubeDMADriver.cpp -o cubeCapture -fopenmp -mfpu=neon -I usr/include usr/lib/libueye_api.so.4.90
 ```

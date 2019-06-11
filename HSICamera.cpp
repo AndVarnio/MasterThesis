@@ -30,6 +30,9 @@ HSICamera::HSICamera(){
   }
 }
 
+HSICamera::~HSICamera(){
+  is_ExitCamera(camera);
+}
 
 void HSICamera::initialize(double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube){
 
@@ -235,6 +238,7 @@ void HSICamera::swTriggerCapture(){
       }
     }
 }
+
 void HSICamera::freeRunCapture(){
 
   switch(binning_method)
@@ -275,6 +279,7 @@ void HSICamera::freeRunCapture(){
   }
 }
 
+// Function used to test different binning methods
 void HSICamera::testBinning(){
   printf("Running test\n");
   ////////For debugging
@@ -363,8 +368,6 @@ void HSICamera::testBinning(){
 
       int bin_offset = 0;
       for(int bin_number=0; bin_number<g_full_binns_per_row_count; bin_number++){
-// Kan spatial direction være speilvendt?
-// Er det et fast antall sampler i spektral direction?
 
         int row_and_bin_offset_raw_frame = row_offset+bin_offset;
         // bubbleSort(p_pixels_in_frame+row_and_bin_offset_raw_frame, p_pixels_in_frame+row_and_bin_offset_raw_frame+12);
@@ -648,8 +651,8 @@ void HSICamera::transferDMA(){
   cdma.cubedma_Init(cubedma_parameters);
 
   // Clean cache
-  unsigned long dummy; //This does nothing, parameter rquired by the kernel.
-  ioctl(fd_send, 0, &dummy);
+  unsigned long dummy; //This does nothing, parameter required by the kernel.
+  ioctl(fd_send, 0, &dummy); // Clean cache
 
   cdma.cubedma_StartTransfer(S2MM);
 	cdma.cubedma_StartTransfer(MM2S);

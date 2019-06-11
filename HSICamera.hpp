@@ -16,6 +16,7 @@ class HSICamera
 {
     public:
       HSICamera();
+      ~HSICamera();
       void initialize(double exposureMs, int rows, int columns, int frames, double fps, cubeFormat cube);
       void runCubeCapture();
       void captureSingleImage();
